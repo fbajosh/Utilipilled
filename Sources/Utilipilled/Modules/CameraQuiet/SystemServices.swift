@@ -7,15 +7,12 @@ import CameraQuietCore
 /// Compiled scripts are reused; no osascript child processes are spawned.
 final class SystemAlertVolume: AlertVolume {
     private var scripts: [String: NSAppleScript] = [:]
-    func script(_ source: String) throws -> String {
+    private func script(_ source: String) throws -> String {
         guard Thread.isMainThread else { throw QuietError.failure("Audio scripting must run on the helper's main thread") }
-        let compiled: NSAppleScript
-        if let cached = scripts[source] { compiled = cached }
-        else {
-            guard let created = NSAppleScript(source: source) else { throw QuietError.failure("Cannot create audio script") }
-            compiled = created
-            scripts[source] = created
+        guard let compiled = scripts[source] ?? NSAppleScript(source: source) else {
+            throw QuietError.failure("Cannot create audio script")
         }
+        scripts[source] = compiled
         var error: NSDictionary?
         let result = compiled.executeAndReturnError(&error)
         if let error = error { throw QuietError.failure("Audio settings: \(error)") }
@@ -127,16 +124,9 @@ final class InstanceLock {
 /// A bounded line protocol over private inherited pipes. No socket or public IPC endpoint.
 private enum GuardianPipe {
     static func send(_ message: String, to fd: Int32) throws {
-        let bytes = Array((message + "\n").utf8)
-        try bytes.withUnsafeBytes { raw in
-            var offset = 0
-            while offset < raw.count {
-                let count = Darwin.write(fd, raw.baseAddress!.advanced(by: offset), raw.count - offset)
-                if count < 0 && errno == EINTR { continue }
-                guard count > 0 else { throw QuietError.failure("Audio helper connection closed") }
-                offset += count
-            }
-        }
+        // Borrow the descriptor: its existing owner controls connection lifetime.
+        try FileHandle(fileDescriptor: fd, closeOnDealloc: false)
+            .write(contentsOf: Data((message + "\n").utf8))
     }
     static func receive(from fd: Int32, timeout: TimeInterval? = nil) throws -> String? {
         let deadline = timeout.map { ProcessInfo.processInfo.systemUptime + $0 }
@@ -252,16 +242,19 @@ final class Watchdog: AlertVolume {
             _ = try SecureStateDirectory(url: directory)
             try GuardianPipe.send("READY", to: STDOUT_FILENO)
             while let command = try GuardianPipe.receive(from: STDIN_FILENO) {
-                let response: String
-                do {
-                    if command == "READ" { response = "OK \(try volume.read())" }
-                    else if command.hasPrefix("WRITE "), let value = Int(command.dropFirst(6)), (0...100).contains(value) {
-                        try volume.write(value); response = "OK written"
-                    } else { throw QuietError.failure("Invalid audio helper command") }
-                } catch {
-                    response = "ERROR " + Data(error.localizedDescription.utf8).base64EncodedString()
+                // This process blocks between commands instead of returning to a Cocoa run loop.
+                try autoreleasepool {
+                    let response: String
+                    do {
+                        if command == "READ" { response = "OK \(try volume.read())" }
+                        else if command.hasPrefix("WRITE "), let value = Int(command.dropFirst(6)), (0...100).contains(value) {
+                            try volume.write(value); response = "OK written"
+                        } else { throw QuietError.failure("Invalid audio helper command") }
+                    } catch {
+                        response = "ERROR " + Data(error.localizedDescription.utf8).base64EncodedString()
+                    }
+                    try GuardianPipe.send(response, to: STDOUT_FILENO)
                 }
-                try GuardianPipe.send(response, to: STDOUT_FILENO)
             }
         } catch { /* A broken response pipe also means the parent is gone. */ }
         // Never wait for instance.lock while holding guardian.lock: a relaunch

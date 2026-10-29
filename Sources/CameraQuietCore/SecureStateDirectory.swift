@@ -4,11 +4,9 @@ import Darwin
 /// The state folder is a private namespace, not an arbitrary path to follow on each access.
 /// Keep its descriptor open so later operations cannot be redirected by replacing its path.
 public final class SecureStateDirectory {
-    public let url: URL
     public let descriptor: Int32
 
     public init(url: URL) throws {
-        self.url = url
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true,
                                                attributes: [.posixPermissions: 0o700])
         let fd = open(url.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
@@ -29,10 +27,10 @@ public final class SecureStateDirectory {
 
     /// Returns a caller-owned descriptor. Never opens symbolic links, FIFOs or shared files.
     /// O_NONBLOCK prevents a hostile FIFO from blocking before its type can be inspected.
-    public func openPrivateRegularFile(_ name: String, flags: Int32, mode: mode_t = 0o600) throws -> Int32 {
+    public func openPrivateRegularFile(_ name: String, flags: Int32) throws -> Int32 {
         try validateName(name)
         guard flags & O_TRUNC == 0 else { throw QuietError.failure("Unsafe state-file open flags") }
-        let fd = openat(descriptor, name, flags | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, mode)
+        let fd = openat(descriptor, name, flags | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK, 0o600)
         guard fd >= 0 else { throw Self.operationError("open state file \(name)") }
         do { try validateFile(fd); return fd }
         catch { close(fd); throw error }
