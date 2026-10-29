@@ -1,0 +1,11 @@
+.build/
+.swiftpm/
+dist/
+.DS_Store
+__pycache__/
+
+# Local verification evidence and internal review notes
+/VALIDATION.*
+/*-VALIDATION.*
+/REVIEW.md
+/RESEARCH.md
