@@ -15,6 +15,7 @@ Additional tests that do not change audio:
 
 ```sh
 python3 Support/test_live_harness.py
+python3 Support/test_update_cask.py
 python3 Support/check_guardian.py
 ```
 
