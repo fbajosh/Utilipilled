@@ -66,6 +66,9 @@ The app does not capture camera frames, record audio, read Messages data, or con
 
 ```sh
 brew upgrade --cask fbajosh/tools/utilipilled
+```
+
+```sh
 brew uninstall --cask fbajosh/tools/utilipilled
 ```
 
