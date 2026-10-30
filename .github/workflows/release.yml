@@ -21,7 +21,7 @@ concurrency:
 jobs:
   check:
     if: github.event_name != 'push'
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,10 +35,20 @@ jobs:
           python3 Support/test_release_plan.py
       - name: Build release package
         run: ./release.sh
+      - name: Upload preview app
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Utilipilled-preview-${{ github.run_attempt }}
+          path: |
+            dist/Utilipilled-*-macOS-arm64.zip
+            dist/Utilipilled-*-macOS-arm64.zip.sha256
+          retention-days: 1
+          if-no-files-found: error
+          compression-level: 0
 
   release:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.repository == 'fbajosh/Utilipilled'
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 20
     permissions:
       contents: write
@@ -81,8 +91,17 @@ jobs:
           app="$unpacked/Utilipilled.app"
           codesign --verify --strict "$app"
           test "$(lipo -archs "$app/Contents/MacOS/Utilipilled")" = arm64
-          cmp Support/Info.plist "$app/Contents/Info.plist"
-          cmp Support/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
+          python3 - "$app" <<'PY'
+          from pathlib import Path
+          import plistlib, sys
+          contents = Path(sys.argv[1]) / 'Contents'
+          source = plistlib.loads(Path('Support/Info.plist').read_bytes())
+          actual = plistlib.loads((contents / 'Info.plist').read_bytes())
+          assert all(actual.get(key) == value for key, value in source.items() if key != 'CFBundleIconFile')
+          assert actual['CFBundleIconFile'] in ('AppIcon', 'AppIcon.icns')
+          assert actual['CFBundleIconName'] == 'AppIcon'
+          assert all((contents / 'Resources' / name).stat().st_size > 0 for name in ('Assets.car', 'AppIcon.icns'))
+          PY
           cmp LICENSE "$app/Contents/Resources/LICENSE"
           sha256=$(shasum -a 256 "$archive" | awk '{print $1}')
           printf 'sha256=%s\n' "$sha256" >> "$GITHUB_OUTPUT"

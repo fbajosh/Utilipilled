@@ -13,7 +13,7 @@ Merges with the same version as the latest release run checks without publishing
 
 The workflow tests and builds on a standard Apple silicon macOS runner, verifies the packaged signature, architecture, icon, license, metadata and checksum, then creates the tag and publishes the ZIP and checksum to GitHub Releases in the same run. Release notes include the merged changes and state that the build is ad-hoc signed and not notarized.
 
-After publication, a separate job updates the version and checksum in the Homebrew tap. It refuses downgrades or changed bytes for an existing version. Standard runners are free for this public repository; the workflow does not retain Actions artifacts or caches.
+After publication, a separate job updates the version and checksum in the Homebrew tap. It refuses downgrades or changed bytes for an existing version. Standard runners are free for this public repository. Preview app packages from PR builds are retained in Actions for one day; no Actions caches are used.
 
 ### Homebrew access
 
