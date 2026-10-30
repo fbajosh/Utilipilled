@@ -4,19 +4,14 @@ Homebrew distribution uses [fbajosh/homebrew-tools](https://github.com/fbajosh/h
 
 ## Publish with GitHub Actions (free)
 
-Pull requests and pushes to `main` run the automated tests and build the app. Merging does not publish a release.
+Pull requests run the automated tests and build the app. When a PR merges into `main`, a newer app version automatically creates its tag, publishes the release, and updates Homebrew after the tests and package checks pass.
 
-1. Update `CFBundleShortVersionString` and increment `CFBundleVersion` in `Support/Info.plist`. Merge the reviewed changes into `main` and wait for the build to pass.
-2. Tag that commit with the matching stable version, for example:
+1. Set `CFBundleShortVersionString` to the new stable version and increment `CFBundleVersion` in `Support/Info.plist` as part of the PR.
+2. Merge the reviewed PR and follow **Build and release** in the Actions tab. No Terminal commands or manual tags are needed.
 
-   ```sh
-   git switch main
-   git pull --ff-only
-   git tag -a v1.2.1 -m "Utilipilled 1.2.1"
-   git push origin v1.2.1
-   ```
+Merges with the same version as the latest release run checks without publishing. Older versions are rejected. Manual version-tag pushes still work, with the same source and version checks. An existing tag must identify the exact checked commit; it is never moved.
 
-The workflow checks that the tagged commit belongs to `main`, the tag matches the app version, and the version is newer than the latest public release. It tests and builds on a standard Apple silicon macOS runner, verifies the packaged signature, architecture, icon, license, metadata and checksum, then publishes the ZIP and checksum to GitHub Releases. Release notes include the merged changes and state that the build is ad-hoc signed and not notarized.
+The workflow tests and builds on a standard Apple silicon macOS runner, verifies the packaged signature, architecture, icon, license, metadata and checksum, then creates the tag and publishes the ZIP and checksum to GitHub Releases in the same run. Release notes include the merged changes and state that the build is ad-hoc signed and not notarized.
 
 After publication, a separate job updates the version and checksum in the Homebrew tap. It refuses downgrades or changed bytes for an existing version. Standard runners are free for this public repository; the workflow does not retain Actions artifacts or caches.
 
@@ -30,11 +25,11 @@ To replace it, generate a dedicated Ed25519 key, add its public key in the tap's
 
 Use **Re-run failed jobs** in Actions. If only Homebrew failed, this retries that update using the original published checksum. Published release assets are never overwritten. If publication left an unpublished draft, inspect and delete only that draft before retrying the failed release job; keep the version tag. For a manual Homebrew repair, copy the version and checksum from the published release into `Casks/utilipilled.rb` in the tap.
 
-Test the downloaded app on a real Mac before tagging when changing camera detection, alert control, login or recovery. The automated build does not exercise physical camera sessions or real alert-volume changes.
+Test the built app on a real Mac before merging a version bump when changing camera detection, alert control, login or recovery. The automated build does not exercise physical camera sessions or real alert-volume changes.
 
 ## Build and publish manually
 
-For a manual release, disable **Build and release** in Actions before pushing the tag, and re-enable it afterward. This also applies to Developer ID signed releases; the automated path currently builds ad-hoc signed releases.
+For a manual release, disable **Build and release** in Actions before merging the version bump or pushing the tag, and re-enable it afterward. This also applies to Developer ID signed releases; the automated path currently builds ad-hoc signed releases.
 
 1. Update `CFBundleShortVersionString` and increment `CFBundleVersion` in `Support/Info.plist` for each new published version.
 2. Run `./test.sh`, then `./release.sh` on an Apple silicon Mac.

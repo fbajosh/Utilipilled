@@ -15,12 +15,12 @@ defaults:
     shell: bash
 
 concurrency:
-  group: ${{ github.workflow }}-${{ startsWith(github.ref, 'refs/tags/') && 'release' || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'push' && 'release' || github.ref }}
   cancel-in-progress: false
 
 jobs:
   check:
-    if: github.ref_type != 'tag'
+    if: github.event_name != 'push'
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -32,27 +32,28 @@ jobs:
           ./test.sh
           python3 Support/test_live_harness.py
           python3 Support/test_update_cask.py
+          python3 Support/test_release_plan.py
       - name: Build release package
         run: ./release.sh
 
   release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.repository == 'fbajosh/Utilipilled'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) && github.repository == 'fbajosh/Utilipilled'
     runs-on: macos-15
     timeout-minutes: 20
     permissions:
       contents: write
     outputs:
+      publish: ${{ steps.metadata.outputs.publish }}
       version: ${{ steps.metadata.outputs.version }}
       sha256: ${{ steps.package.outputs.sha256 }}
     env:
       GH_REPO: ${{ github.repository }}
-      RELEASE_TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Validate release tag
+      - name: Plan release
         id: metadata
         env:
           GH_TOKEN: ${{ github.token }}
@@ -60,25 +61,13 @@ jobs:
           git merge-base --is-ancestor HEAD origin/main
           LATEST_TAG=$(gh release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
           export LATEST_TAG
-          python3 - <<'PY'
-          import os, plistlib, re
-          from pathlib import Path
-          version = plistlib.loads(Path('Support/Info.plist').read_bytes())['CFBundleShortVersionString']
-          if not re.fullmatch(r'(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', version):
-              raise SystemExit('Use a stable major.minor.patch version.')
-          if os.environ['RELEASE_TAG'] != f'v{version}':
-              raise SystemExit('The tag must match the version in Support/Info.plist.')
-          latest = os.environ['LATEST_TAG']
-          if latest and tuple(map(int, version.split('.'))) <= tuple(map(int, latest.removeprefix('v').split('.'))):
-              raise SystemExit('The release version must be newer than the latest published version.')
-          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              output.write(f'version={version}\n')
-          PY
+          python3 Support/release_plan.py
       - name: Test
         run: |
           ./test.sh
           python3 Support/test_live_harness.py
           python3 Support/test_update_cask.py
+          python3 Support/test_release_plan.py
       - name: Build and verify release package
         id: package
         env:
@@ -97,9 +86,27 @@ jobs:
           cmp LICENSE "$app/Contents/Resources/LICENSE"
           sha256=$(shasum -a 256 "$archive" | awk '{print $1}')
           printf 'sha256=%s\n' "$sha256" >> "$GITHUB_OUTPUT"
-      - name: Publish release
+      - name: Create version tag
+        if: steps.metadata.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          commit=$(git rev-parse HEAD)
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            if [[ "$(git rev-parse "$RELEASE_TAG^{commit}")" != "$commit" ]]; then
+              printf 'Refusing to move an existing release tag.\n' >&2
+              exit 1
+            fi
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" \
+              -f "ref=refs/tags/$RELEASE_TAG" -f "sha=$commit" --silent
+          fi
+      - name: Publish release
+        if: steps.metadata.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
           VERSION: ${{ steps.metadata.outputs.version }}
         run: |
           gh release create "$RELEASE_TAG" \
@@ -110,6 +117,7 @@ jobs:
 
   homebrew:
     needs: release
+    if: needs.release.outputs.publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
