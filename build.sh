@@ -14,6 +14,7 @@ mkdir -p "$staged_app/Contents/MacOS" "$staged_app/Contents/Resources"
 cp .build/release/Utilipilled "$staged_app/Contents/MacOS/Utilipilled"
 cp Support/Info.plist "$staged_app/Contents/Info.plist"
 cp LICENSE "$staged_app/Contents/Resources/LICENSE"
+cp Support/AppIcon.icns "$staged_app/Contents/Resources/AppIcon.icns"
 signing_identity="${JOSHTOOLS_SIGNING_IDENTITY:--}"
 if [[ "$signing_identity" == "-" ]]; then
   codesign --force --sign - "$staged_app"

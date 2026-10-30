@@ -1,65 +1,42 @@
 import Foundation
 // Standalone runner also works with Command Line Tools, without XCTest/Xcode.
+let tests: [(String, () throws -> Void)] = [
+    ("testDurableIntentBeforeMuteAndRestoreAfterLastCamera", MuteSessionTests().testDurableIntentBeforeMuteAndRestoreAfterLastCamera),
+    ("testUserOverrideIsNotOverwrittenOrRemutedUntilIdle", MuteSessionTests().testUserOverrideIsNotOverwrittenOrRemutedUntilIdle),
+    ("testInitiallySilentStaysSilentAndDoesNotClaimUserChange", MuteSessionTests().testInitiallySilentStaysSilentAndDoesNotClaimUserChange),
+    ("testCrashRecoveryAndIdempotency", MuteSessionTests().testCrashRecoveryAndIdempotency),
+    ("testCrashRecoveryPreservesUserChange", MuteSessionTests().testCrashRecoveryPreservesUserChange),
+    ("testCannotMuteWithoutSavingRecovery", MuteSessionTests().testCannotMuteWithoutSavingRecovery),
+    ("testFailedRestoreRetainsJournalForRetry", MuteSessionTests().testFailedRestoreRetainsJournalForRetry),
+    ("testPauseRestoresAndExplicitOverrideLastsUntilIdle", MuteSessionTests().testPauseRestoresAndExplicitOverrideLastsUntilIdle),
+    ("testFileJournalRoundTripAndCorruptionDoesNotOverwrite", MuteSessionTests().testFileJournalRoundTripAndCorruptionDoesNotOverwrite),
+    ("testConcurrentCamerasAndIdleDebounce", CameraPolicyTests().testConcurrentCamerasAndIdleDebounce),
+    ("testUnknownIsNotIdleAndEventuallyFails", CameraPolicyTests().testUnknownIsNotIdleAndEventuallyFails),
+    ("testKnownActiveCameraWinsOverAnotherUnreadableCamera", CameraPolicyTests().testKnownActiveCameraWinsOverAnotherUnreadableCamera),
+    ("testRejectsSymlinkStateDirectory", SecureStateTests().testRejectsSymlinkStateDirectory),
+    ("testRejectsPublicStateDirectoryWithoutChangingItsPermissions", SecureStateTests().testRejectsPublicStateDirectoryWithoutChangingItsPermissions),
+    ("testRejectsJournalSymlinkWithoutReadingOrChangingTarget", SecureStateTests().testRejectsJournalSymlinkWithoutReadingOrChangingTarget),
+    ("testRejectsFifoWithoutBlocking", SecureStateTests().testRejectsFifoWithoutBlocking),
+    ("testRejectsHardLinkedJournal", SecureStateTests().testRejectsHardLinkedJournal),
+    ("testOversizedJournalCannotCauseRecoveryMutation", SecureStateTests().testOversizedJournalCannotCauseRecoveryMutation),
+    ("testStateOperationsStayAnchoredWhenPathIsReplaced", SecureStateTests().testStateOperationsStayAnchoredWhenPathIsReplaced),
+    ("testNewJournalIsPrivateAndAtomicReplacementLeavesNoTemporaryFiles", SecureStateTests().testNewJournalIsPrivateAndAtomicReplacementLeavesNoTemporaryFiles),
+    ("testIdleAndUnknownDeadlinesUseElapsedTime", CameraPolicyTests().testIdleAndUnknownDeadlinesUseElapsedTime),
+    ("testPrivateFileHelperRejectsUnsafeLockFilesAndNames", SecureStateTests().testPrivateFileHelperRejectsUnsafeLockFilesAndNames),
+    ("testPartialMuteFailureRetainsBaselineAndRecovers", MuteSessionFaultTests().testPartialMuteFailureRetainsBaselineAndRecovers),
+    ("testPostMuteReadFailureKeepsRecordForRecovery", MuteSessionFaultTests().testPostMuteReadFailureKeepsRecordForRecovery),
+    ("testRecoveryAudioReadFailureDoesNotDiscardJournalOrOwnership", MuteSessionFaultTests().testRecoveryAudioReadFailureDoesNotDiscardJournalOrOwnership),
+    ("testJournalLoadFailureDoesNotWriteAudioOrForgetOwnership", MuteSessionFaultTests().testJournalLoadFailureDoesNotWriteAudioOrForgetOwnership),
+    ("testFailedJournalRemovalAfterRestoreCanRetryWithoutRepeatedAudioWrite", MuteSessionFaultTests().testFailedJournalRemovalAfterRestoreCanRetryWithoutRepeatedAudioWrite),
+    ("testObservedUserOverrideSurvivesJournalRemovalFailure", MuteSessionFaultTests().testObservedUserOverrideSurvivesJournalRemovalFailure),
+    ("testInvalidRecoveryRecordVersionAndRangeNeverWriteAudio", MuteSessionFaultTests().testInvalidRecoveryRecordVersionAndRangeNeverWriteAudio),
+]
 do {
-    try MuteSessionTests().testDurableIntentBeforeMuteAndRestoreAfterLastCamera()
-    print("PASS testDurableIntentBeforeMuteAndRestoreAfterLastCamera")
-    try MuteSessionTests().testUserOverrideIsNotOverwrittenOrRemutedUntilIdle()
-    print("PASS testUserOverrideIsNotOverwrittenOrRemutedUntilIdle")
-    try MuteSessionTests().testInitiallySilentStaysSilentAndDoesNotClaimUserChange()
-    print("PASS testInitiallySilentStaysSilentAndDoesNotClaimUserChange")
-    try MuteSessionTests().testCrashRecoveryAndIdempotency()
-    print("PASS testCrashRecoveryAndIdempotency")
-    try MuteSessionTests().testCrashRecoveryPreservesUserChange()
-    print("PASS testCrashRecoveryPreservesUserChange")
-    try MuteSessionTests().testCannotMuteWithoutSavingRecovery()
-    print("PASS testCannotMuteWithoutSavingRecovery")
-    try MuteSessionTests().testFailedRestoreRetainsJournalForRetry()
-    print("PASS testFailedRestoreRetainsJournalForRetry")
-    try MuteSessionTests().testPauseRestoresAndExplicitOverrideLastsUntilIdle()
-    print("PASS testPauseRestoresAndExplicitOverrideLastsUntilIdle")
-    try MuteSessionTests().testFileJournalRoundTripAndCorruptionDoesNotOverwrite()
-    print("PASS testFileJournalRoundTripAndCorruptionDoesNotOverwrite")
-    try CameraPolicyTests().testConcurrentCamerasAndIdleDebounce()
-    print("PASS testConcurrentCamerasAndIdleDebounce")
-    try CameraPolicyTests().testUnknownIsNotIdleAndEventuallyFails()
-    print("PASS testUnknownIsNotIdleAndEventuallyFails")
-    try CameraPolicyTests().testKnownActiveCameraWinsOverAnotherUnreadableCamera()
-    print("PASS testKnownActiveCameraWinsOverAnotherUnreadableCamera")
-    try SecureStateTests().testRejectsSymlinkStateDirectory()
-    print("PASS testRejectsSymlinkStateDirectory")
-    try SecureStateTests().testRejectsPublicStateDirectoryWithoutChangingItsPermissions()
-    print("PASS testRejectsPublicStateDirectoryWithoutChangingItsPermissions")
-    try SecureStateTests().testRejectsJournalSymlinkWithoutReadingOrChangingTarget()
-    print("PASS testRejectsJournalSymlinkWithoutReadingOrChangingTarget")
-    try SecureStateTests().testRejectsFifoWithoutBlocking()
-    print("PASS testRejectsFifoWithoutBlocking")
-    try SecureStateTests().testRejectsHardLinkedJournal()
-    print("PASS testRejectsHardLinkedJournal")
-    try SecureStateTests().testOversizedJournalCannotCauseRecoveryMutation()
-    print("PASS testOversizedJournalCannotCauseRecoveryMutation")
-    try SecureStateTests().testStateOperationsStayAnchoredWhenPathIsReplaced()
-    print("PASS testStateOperationsStayAnchoredWhenPathIsReplaced")
-    try SecureStateTests().testNewJournalIsPrivateAndAtomicReplacementLeavesNoTemporaryFiles()
-    print("PASS testNewJournalIsPrivateAndAtomicReplacementLeavesNoTemporaryFiles")
-    try CameraPolicyTests().testIdleAndUnknownDeadlinesUseElapsedTime()
-    print("PASS testIdleAndUnknownDeadlinesUseElapsedTime")
-    try SecureStateTests().testPrivateFileHelperRejectsUnsafeLockFilesAndNames()
-    print("PASS testPrivateFileHelperRejectsUnsafeLockFilesAndNames")
-    try MuteSessionFaultTests().testPartialMuteFailureRetainsBaselineAndRecovers()
-    print("PASS testPartialMuteFailureRetainsBaselineAndRecovers")
-    try MuteSessionFaultTests().testPostMuteReadFailureKeepsRecordForRecovery()
-    print("PASS testPostMuteReadFailureKeepsRecordForRecovery")
-    try MuteSessionFaultTests().testRecoveryAudioReadFailureDoesNotDiscardJournalOrOwnership()
-    print("PASS testRecoveryAudioReadFailureDoesNotDiscardJournalOrOwnership")
-    try MuteSessionFaultTests().testJournalLoadFailureDoesNotWriteAudioOrForgetOwnership()
-    print("PASS testJournalLoadFailureDoesNotWriteAudioOrForgetOwnership")
-    try MuteSessionFaultTests().testFailedJournalRemovalAfterRestoreCanRetryWithoutRepeatedAudioWrite()
-    print("PASS testFailedJournalRemovalAfterRestoreCanRetryWithoutRepeatedAudioWrite")
-    try MuteSessionFaultTests().testObservedUserOverrideSurvivesJournalRemovalFailure()
-    print("PASS testObservedUserOverrideSurvivesJournalRemovalFailure")
-    try MuteSessionFaultTests().testInvalidRecoveryRecordVersionAndRangeNeverWriteAudio()
-    print("PASS testInvalidRecoveryRecordVersionAndRangeNeverWriteAudio")
-    print("29 tests passed")
+    for (name, run) in tests {
+        try run()
+        print("PASS \(name)")
+    }
+    print("\(tests.count) tests passed")
 } catch {
     fputs("FAIL: \(error)\n", stderr); exit(1)
 }

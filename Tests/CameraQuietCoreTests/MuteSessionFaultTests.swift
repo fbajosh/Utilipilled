@@ -7,6 +7,7 @@ private final class FaultVolume: AlertVolume {
     var readAttempts = 0
     var failOnRead: Int?
     var failAfterZeroWrite = false
+    var valueAfterMute: Int?
     init(_ value: Int) { self.value = value }
     func read() throws -> Int {
         readAttempts += 1
@@ -14,7 +15,7 @@ private final class FaultVolume: AlertVolume {
         return value
     }
     func write(_ value: Int) throws {
-        self.value = value
+        self.value = value == 0 ? (valueAfterMute ?? value) : value
         writes.append(value)
         if value == 0 && failAfterZeroWrite { throw QuietError.failure("Injected failure after mute took effect") }
     }
@@ -113,26 +114,32 @@ struct MuteSessionFaultTests {
     }
 
     func testObservedUserOverrideSurvivesJournalRemovalFailure() throws {
-        let volume = FaultVolume(91), store = FaultRecoveryStore()
-        let session = MuteSession(volume: volume, store: store)
-        try session.update(cameraActive: true, enabled: true)
-        volume.value = 24
-        store.clearFails = true
-        XCTAssertThrowsError(try session.update(cameraActive: true, enabled: true))
-        // Disk cleanup failure must not revoke the user preference already observed.
-        XCTAssertTrue(session.overridden)
-        XCTAssertFalse(session.ownsMute)
-        XCTAssertEqual(volume.value, 24)
-        XCTAssertEqual(volume.writes, [0])
-        // The user's later zero is now their own setting, not a mute still owned by us.
-        volume.value = 0
-        try session.update(cameraActive: true, enabled: true)
-        XCTAssertEqual(volume.writes, [0])
-        store.clearFails = false
-        try session.recover()
-        XCTAssertEqual(volume.value, 0)
-        XCTAssertEqual(volume.writes, [0])
-        XCTAssertNil(store.record)
+        // Observe the user change either immediately after the mute or on a later poll.
+        for duringInitialMute in [true, false] {
+            let volume = FaultVolume(91), store = FaultRecoveryStore()
+            let session = MuteSession(volume: volume, store: store)
+            if duringInitialMute { volume.valueAfterMute = 24 }
+            else {
+                try session.update(cameraActive: true, enabled: true)
+                volume.value = 24
+            }
+            store.clearFails = true
+            XCTAssertThrowsError(try session.update(cameraActive: true, enabled: true))
+            // Disk cleanup failure must not revoke the user preference already observed.
+            XCTAssertTrue(session.overridden)
+            XCTAssertFalse(session.ownsMute)
+            XCTAssertEqual(volume.value, 24)
+            XCTAssertEqual(volume.writes, [0])
+            // The user's later zero is their setting, not a mute still owned by us.
+            volume.value = 0
+            try session.update(cameraActive: true, enabled: true)
+            XCTAssertEqual(volume.writes, [0])
+            store.clearFails = false
+            try session.recover()
+            XCTAssertEqual(volume.value, 0)
+            XCTAssertEqual(volume.writes, [0])
+            XCTAssertNil(store.record)
+        }
     }
 
     func testInvalidRecoveryRecordVersionAndRangeNeverWriteAudio() throws {

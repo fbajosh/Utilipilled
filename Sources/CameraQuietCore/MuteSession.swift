@@ -51,26 +51,19 @@ public final class MuteSession {
             return
         }
         if overridden { return }
-        if ownsMute {
-            if try volume.read() != 0 {
-                // The user wins for the rest of this camera session.
-                ownsMute = false
-                overridden = true
-                try store.clear()
-            }
-            return
+        if !ownsMute {
+            let previous = try volume.read()
+            guard (0...100).contains(previous) else { throw QuietError.failure("Invalid alert volume") }
+            if previous == 0 { overridden = true; return } // Already silent: nothing to restore or claim.
+            try store.save(RecoveryRecord(originalVolume: previous))
+            ownsMute = true // Keep intent even when a write throws after partially succeeding.
+            try volume.write(0)
         }
-        let previous = try volume.read()
-        guard (0...100).contains(previous) else { throw QuietError.failure("Invalid alert volume") }
-        if previous == 0 { overridden = true; return } // Already silent: nothing to restore or claim.
-        try store.save(RecoveryRecord(originalVolume: previous))
-        ownsMute = true // Keep intent even when a write throws after partially succeeding.
-        try volume.write(0)
-        let actual = try volume.read()
-        if actual != 0 {
-            try store.clear()
+        // The same override check applies after muting and on subsequent polls.
+        if try volume.read() != 0 {
             ownsMute = false
             overridden = true
+            try store.clear()
         }
     }
 
@@ -124,18 +117,8 @@ public final class FileRecoveryStore: RecoveryStore {
         let fd = try directory.openPrivateRegularFile(temporary, flags: O_WRONLY | O_CREAT | O_EXCL)
         defer { close(fd); _ = unlinkat(directory.descriptor, temporary, 0) }
         let data = try JSONEncoder().encode(record)
-        try data.withUnsafeBytes { bytes in
-            var written = 0
-            while written < bytes.count {
-                let count = write(fd, bytes.baseAddress!.advanced(by: written), bytes.count - written)
-                if count < 0 {
-                    if errno == EINTR { continue }
-                    throw SecureStateDirectory.operationError("write recovery record")
-                }
-                guard count > 0 else { throw QuietError.failure("Could not finish writing recovery record") }
-                written += count
-            }
-        }
+        // Foundation completes the write or throws; this scope still owns the FD.
+        try FileHandle(fileDescriptor: fd, closeOnDealloc: false).write(contentsOf: data)
         guard fchmod(fd, 0o600) == 0, fsync(fd) == 0 else {
             throw SecureStateDirectory.operationError("synchronize recovery record")
         }

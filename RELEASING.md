@@ -2,7 +2,39 @@
 
 Homebrew distribution uses [fbajosh/homebrew-tools](https://github.com/fbajosh/homebrew-tools), with downloads hosted as immutable versioned [GitHub release assets](https://github.com/fbajosh/Utilipilled/releases). The initial cask supports Apple silicon and macOS 13 or later.
 
-## Build a personal-use release (free)
+## Publish with GitHub Actions (free)
+
+Pull requests and pushes to `main` run the automated tests and build the app. Merging does not publish a release.
+
+1. Update `CFBundleShortVersionString` and increment `CFBundleVersion` in `Support/Info.plist`. Merge the reviewed changes into `main` and wait for the build to pass.
+2. Tag that commit with the matching stable version, for example:
+
+   ```sh
+   git switch main
+   git pull --ff-only
+   git tag -a v1.2.1 -m "Utilipilled 1.2.1"
+   git push origin v1.2.1
+   ```
+
+The workflow checks that the tagged commit belongs to `main`, the tag matches the app version, and the version is newer than the latest public release. It tests and builds on a standard Apple silicon macOS runner, verifies the packaged signature, architecture, icon, license, metadata and checksum, then publishes the ZIP and checksum to GitHub Releases. Release notes include the merged changes and state that the build is ad-hoc signed and not notarized.
+
+After publication, a separate job updates the version and checksum in the Homebrew tap. It refuses downgrades or changed bytes for an existing version. Standard runners are free for this public repository; the workflow does not retain Actions artifacts or caches.
+
+### Homebrew access
+
+The `HOMEBREW_TAP_SSH_KEY` Actions secret in this repository holds a dedicated SSH private key. Its public key must be registered as a write-enabled deploy key on `fbajosh/homebrew-tools`. It grants access to that tap only and is used exclusively by the Homebrew update job, after the release succeeds. The app build and pull-request checks do not receive it.
+
+To replace it, generate a dedicated Ed25519 key, add its public key in the tap's **Settings > Deploy keys** with write access, and save the private key as `HOMEBREW_TAP_SSH_KEY` under this repository's **Settings > Secrets and variables > Actions**. Remove the old deploy key after the replacement works. Never commit the private key or reuse a personal SSH key.
+
+### Failed runs
+
+Use **Re-run failed jobs** in Actions. If only Homebrew failed, this retries that update using the original published checksum. Published release assets are never overwritten. If publication left an unpublished draft, inspect and delete only that draft before retrying the failed release job; keep the version tag. For a manual Homebrew repair, copy the version and checksum from the published release into `Casks/utilipilled.rb` in the tap.
+
+Test the downloaded app on a real Mac before tagging when changing camera detection, alert control, login or recovery. The automated build does not exercise physical camera sessions or real alert-volume changes.
+
+## Build and publish manually
+
+For a manual release, disable **Build and release** in Actions before pushing the tag, and re-enable it afterward. This also applies to Developer ID signed releases; the automated path currently builds ad-hoc signed releases.
 
 1. Update `CFBundleShortVersionString` and increment `CFBundleVersion` in `Support/Info.plist` for each new published version.
 2. Run `./test.sh`, then `./release.sh` on an Apple silicon Mac.
