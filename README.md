@@ -75,7 +75,7 @@ Existing `joshtools` installations migrate through the same Homebrew tap. Replac
 
 ## Build from source
 
-With Xcode or Apple's Command Line Tools installed:
+With full Xcode 26 or later installed and selected as the active developer tools:
 
 ```sh
 ./build.sh

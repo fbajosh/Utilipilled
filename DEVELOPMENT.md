@@ -2,7 +2,7 @@
 
 ## Build and test
 
-Install Xcode or Apple's Command Line Tools, then run:
+Install full Xcode 26 or later and select it as the active developer tools, then run:
 
 ```sh
 ./build.sh
@@ -11,11 +11,14 @@ Install Xcode or Apple's Command Line Tools, then run:
 
 The app bundle is written to `dist/Utilipilled.app`; build caches stay in `.build`. There are no package dependencies. The standalone Swift test runner does not require XCTest.
 
+`Support/AppIcon.icon` is the editable Icon Composer source. The build compiles it into `Assets.car` for layered icons and an `AppIcon.icns` fallback for older macOS versions. Building the complete app requires Xcode's asset compiler; `./test.sh` also works with Command Line Tools alone. PR builds provide a preview app ZIP in Actions, retained for one day.
+
 Additional tests that do not change audio:
 
 ```sh
 python3 Support/test_live_harness.py
 python3 Support/test_update_cask.py
+python3 Support/test_release_plan.py
 python3 Support/check_guardian.py
 ```
 
