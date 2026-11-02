@@ -18,7 +18,7 @@ mkdir -p "$staged_app/Contents/MacOS" "$staged_app/Contents/Resources"
 cp .build/release/Utilipilled "$staged_app/Contents/MacOS/Utilipilled"
 cp Support/Info.plist "$staged_app/Contents/Info.plist"
 cp LICENSE "$staged_app/Contents/Resources/LICENSE"
-xcrun actool Support/AppIcon.icon \
+xcrun actool Support/AppIcon.icon Support/MenuBar.xcassets \
   --compile "$staged_app/Contents/Resources" \
   --app-icon AppIcon --include-all-app-icons --target-device mac \
   --platform macosx --minimum-deployment-target 13.0 \
