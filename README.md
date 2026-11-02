@@ -1,6 +1,6 @@
 # Utilipilled
 
-Utilipilled is a macOS menu-bar app for small utilities. Its first module, **Camera Quiet**, silences alert sounds while a camera is in use and restores them afterward.
+Utilipilled is a macOS menu-bar app for small utilities. **Camera Quiet** silences alert sounds while a camera is in use and restores them afterward. **Keep Awake** keeps the screen and Mac awake until you turn it off or quit.
 
 Notification banners and badges stay visible. Call and media volume are unchanged. Camera Quiet controls **system alert volume**, so alerts from other apps are silenced too; sounds played as ordinary media may still be audible.
 
@@ -27,19 +27,21 @@ The current release isn't notarized by Apple. If macOS blocks it, attempt to ope
 
 Open Utilipilled once. Camera Quiet is enabled by default and runs in the background.
 
-- The menu-bar icon appears during camera use and hides when all cameras are idle. There is no Dock icon.
-- **To find the menu while it's hidden, reopen Utilipilled from Applications or Spotlight.** The icon appears temporarily and the menu opens.
-- A crossed-out bell means alert sounds are being suppressed. Allow about two seconds for sounds to return after the last camera stops.
+- The menu-bar icon stays visible. Clicking it opens the menu; it does not toggle either module. There is no Dock icon.
+- The **on** artwork appears while Keep Awake is enabled or Camera Quiet is suppressing alert sounds. The menu shows each module's status.
+- Allow about two seconds for alert sounds to return after the last camera stops.
 
 The menu lets you:
 
+- Toggle **Keep screen awake**. It starts off each time you launch the app.
 - Toggle **Automatic quiet**. Turning it off restores sounds.
 - **Restore sounds for this camera session**, restoring your previous setting and pausing suppression until all cameras become idle.
-- Enable **Show icon while camera is idle** for easier access.
 - Enable **Launch at login** to start automatically.
 - **Quit Utilipilled and restore sounds**.
 
 If you manually raise Alert volume during a camera session, Utilipilled keeps your new setting for that session. Use the menu's restore command for an explicit override.
+
+Keep Awake prevents idle display and system sleep without changing your saved sleep settings. Normal sleep behavior returns when you turn it off, quit, or the app crashes. Closing the lid, choosing Sleep manually, and low-battery sleep still take precedence. It does not simulate mouse activity or override screen-lock policies.
 
 ## If sounds don't return
 

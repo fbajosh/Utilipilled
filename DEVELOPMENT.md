@@ -13,6 +13,10 @@ The app bundle is written to `dist/Utilipilled.app`; build caches stay in `.buil
 
 `Support/AppIcon.icon` is the editable Icon Composer source. The build compiles it into `Assets.car` for layered icons and an `AppIcon.icns` fallback for older macOS versions. Building the complete app requires Xcode's asset compiler; `./test.sh` also works with Command Line Tools alone. PR builds provide a preview app ZIP in Actions, retained for one day.
 
+`Support/MenuBar.xcassets` contains the original on/off SVG artwork. The same asset compiler bundles these as vector template images so AppKit can tint them for light and dark menu bars. The status item always opens the menu; only menu commands change module state.
+
+Keep Awake holds a `PreventUserIdleDisplaySleep` IOKit assertion while enabled. This also prevents idle system sleep. The module starts disabled, releases its assertion on normal exit, and relies on macOS to release it if the process crashes. It does not write power preferences or simulate input.
+
 Additional tests that do not change audio:
 
 ```sh

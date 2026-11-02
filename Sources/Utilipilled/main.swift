@@ -61,6 +61,7 @@ if args.contains("--recover") || args.contains("--exercise-session") {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var item: NSStatusItem!
     private var engine: CameraQuietModule!
+    private let keepAwake = KeepAwakeModule()
     private var lock: InstanceLock?
     private var observers: [NSObjectProtocol] = []
     private var signals: [DispatchSourceSignal] = []
@@ -76,17 +77,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return !(previous?["paused"] as? Bool ?? false)
     }()
     private var toggleItem: NSMenuItem!
+    private var awakeItem: NSMenuItem!
     private var loginItem: NSMenuItem!
     private var titleItem: NSMenuItem!
-    private var idleIconItem: NSMenuItem!
-    private var revealUntil: TimeInterval = 0
-    private var showWhenIdle: Bool = {
-        if UserDefaults.standard.object(forKey: "showWhenIdle") != nil {
-            return UserDefaults.standard.bool(forKey: "showWhenIdle")
-        }
-        if let previous = UserDefaults.standard.persistentDomain(forName: "local.JoshTools")?["showWhenIdle"] as? Bool { return previous }
-        return UserDefaults.standard.persistentDomain(forName: "local.CameraQuiet")?["showWhenIdle"] as? Bool ?? false
-    }()
     private var quitting = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -98,6 +91,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         let menu = NSMenu()
+        menu.addItem(withTitle: "Keep Awake", action: nil, keyEquivalent: "")
+        awakeItem = menu.addItem(withTitle: "Keep screen awake", action: #selector(toggleKeepAwake), keyEquivalent: "")
+        menu.addItem(.separator())
         menu.addItem(withTitle: "Camera Quiet", action: nil, keyEquivalent: "")
         titleItem = menu.addItem(withTitle: status.title, action: nil, keyEquivalent: "")
         menu.addItem(withTitle: "Scope: all system alert sounds", action: nil, keyEquivalent: "")
@@ -108,7 +104,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Utilipilled", action: nil, keyEquivalent: "")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
-        idleIconItem = menu.addItem(withTitle: "Show icon while camera is idle", action: #selector(toggleIdleIcon), keyEquivalent: "")
         menu.addItem(withTitle: "Open Sound settings…", action: #selector(soundSettings), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Utilipilled and restore sounds", action: #selector(quit), keyEquivalent: "q")
@@ -131,26 +126,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     private func render() {
-        let symbol = status.error ? "exclamationmark.triangle" : (status.quiet ? "bell.slash" : "bell")
-        item.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: status.title)
-        item.button?.toolTip = "Utilipilled · Camera Quiet: \(status.title)"
+        item.button?.image = MenuBarIcon.image(active: keepAwake.isEnabled || status.quiet)
+        let description = "Utilipilled · Keep Awake: \(keepAwake.isEnabled ? "On" : "Off") · Camera Quiet: \(status.title)"
+        item.button?.toolTip = description
+        item.button?.setAccessibilityLabel(description)
         titleItem.title = status.title
-        item.isVisible = showWhenIdle || status.cameraActive || status.error || ProcessInfo.processInfo.systemUptime < revealUntil
-        idleIconItem.state = showWhenIdle ? .on : .off
+        awakeItem.state = keepAwake.isEnabled ? .on : .off
         toggleItem.state = enabled ? .on : .off
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        revealUntil = ProcessInfo.processInfo.systemUptime + 60
         render()
         NSApp.activate(ignoringOtherApps: true)
         DispatchQueue.main.async { self.item.button?.performClick(nil) }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 60) { self.render() }
         return false
     }
-    @objc private func toggleIdleIcon() {
-        showWhenIdle.toggle()
-        UserDefaults.standard.set(showWhenIdle, forKey: "showWhenIdle")
+    @objc private func toggleKeepAwake() {
+        do { try keepAwake.setEnabled(!keepAwake.isEnabled) }
+        catch {
+            let a = NSAlert(); a.messageText = "Keep Awake could not be changed"
+            a.informativeText = error.localizedDescription
+            a.runModal()
+        }
         render()
     }
     @objc private func toggle() {
@@ -179,6 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         trace("Termination requested")
+        try? keepAwake.setEnabled(false)
         guard engine != nil else { return .terminateNow }
         if quitting { return .terminateLater }
         quitting = true
