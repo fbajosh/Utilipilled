@@ -18,6 +18,8 @@ mkdir -p "$staged_app/Contents/MacOS" "$staged_app/Contents/Resources"
 cp .build/release/Utilipilled "$staged_app/Contents/MacOS/Utilipilled"
 cp Support/Info.plist "$staged_app/Contents/Info.plist"
 cp LICENSE "$staged_app/Contents/Resources/LICENSE"
+cp THIRD_PARTY_NOTICES.md "$staged_app/Contents/Resources/THIRD_PARTY_NOTICES.md"
+cp Support/Credits.rtf "$staged_app/Contents/Resources/Credits.rtf"
 xcrun actool Support/AppIcon.icon Support/MenuBar.xcassets \
   --compile "$staged_app/Contents/Resources" \
   --app-icon AppIcon --include-all-app-icons --target-device mac \

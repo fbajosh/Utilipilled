@@ -90,6 +90,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             a.runModal(); NSApp.terminate(nil); return
         }
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        // Earlier versions persisted a hidden state under AppKit's automatic item name.
+        item.autosaveName = "Utilipilled"
+        item.isVisible = true
         let menu = NSMenu()
         menu.addItem(withTitle: "Keep Awake", action: nil, keyEquivalent: "")
         awakeItem = menu.addItem(withTitle: "Keep screen awake", action: #selector(toggleKeepAwake), keyEquivalent: "")
@@ -105,6 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Utilipilled", action: nil, keyEquivalent: "")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
         menu.addItem(withTitle: "Open Sound settings…", action: #selector(soundSettings), keyEquivalent: "")
+        menu.addItem(withTitle: "About Utilipilled…", action: #selector(about), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit Utilipilled and restore sounds", action: #selector(quit), keyEquivalent: "q")
         for entry in menu.items where entry.action != nil { entry.target = self }
@@ -136,6 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        item.isVisible = true
         render()
         NSApp.activate(ignoringOtherApps: true)
         DispatchQueue.main.async { self.item.button?.performClick(nil) }
@@ -173,6 +178,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         render()
     }
     @objc private func soundSettings() { NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension")!) }
+    @objc private func about() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
+    }
     @objc private func quit() { NSApp.terminate(nil) }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         trace("Termination requested")
