@@ -37,6 +37,7 @@ The menu lets you:
 - Toggle **Automatic quiet**. Turning it off restores sounds.
 - **Restore sounds for this camera session**, restoring your previous setting and pausing suppression until all cameras become idle.
 - Enable **Launch at login** to start automatically.
+- Open **About Utilipilled…** for version information and icon credits.
 - **Quit Utilipilled and restore sounds**.
 
 If you manually raise Alert volume during a camera session, Utilipilled keeps your new setting for that session. Use the menu's restore command for an explicit override.
