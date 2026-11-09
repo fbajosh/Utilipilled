@@ -15,7 +15,7 @@ The app bundle is written to `dist/Utilipilled.app`; build caches stay in `.buil
 
 `Support/MenuBar.xcassets` contains the original on/off SVG artwork. The same asset compiler bundles these as vector template images so AppKit can tint them for light and dark menu bars. The status item always opens the menu; only menu commands change module state.
 
-Keep Awake holds a `PreventUserIdleDisplaySleep` IOKit assertion while enabled. This also prevents idle system sleep. The module starts disabled, releases its assertion on normal exit, and relies on macOS to release it if the process crashes. It does not write power preferences or simulate input.
+Keep Awake holds a `PreventUserIdleDisplaySleep` IOKit assertion while enabled. This also prevents idle system sleep. The module saves the selected duration and active session. Timed sessions use both a native assertion timeout and a main-run-loop timer; relaunch retains the deadline. Until-restart sessions are tied to the kernel boot-session UUID. Normal exit releases the assertion, and macOS releases it if the process crashes. It does not write power preferences or simulate input.
 
 Additional tests that do not change audio:
 
