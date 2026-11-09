@@ -80,6 +80,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var awakeItem: NSMenuItem!
     private var loginItem: NSMenuItem!
     private var titleItem: NSMenuItem!
+    private var durationItem: NSMenuItem!
     private var quitting = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -94,30 +95,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.autosaveName = "Utilipilled"
         item.isVisible = true
         let menu = NSMenu()
-        menu.addItem(withTitle: "Keep Awake", action: nil, keyEquivalent: "")
-        awakeItem = menu.addItem(withTitle: "Keep screen awake", action: #selector(toggleKeepAwake), keyEquivalent: "")
+        func heading(_ title: String, primary: Bool = false) {
+            let entry = menu.addItem(withTitle: title, action: nil, keyEquivalent: "")
+            if primary {
+                let view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 28))
+                let label = NSTextField(labelWithString: title)
+                label.font = .boldSystemFont(ofSize: 14)
+                label.textColor = .labelColor
+                label.frame = NSRect(x: 14, y: 4, width: 222, height: 20)
+                view.addSubview(label); entry.view = view
+                return
+            }
+            entry.attributedTitle = NSAttributedString(string: title, attributes: [
+                .font: NSFont.boldSystemFont(ofSize: primary ? 14 : 12),
+                .foregroundColor: primary ? NSColor.labelColor : NSColor.secondaryLabelColor
+            ])
+        }
+        heading("Utilipilled", primary: true)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Camera Quiet", action: nil, keyEquivalent: "")
-        titleItem = menu.addItem(withTitle: status.title, action: nil, keyEquivalent: "")
-        menu.addItem(withTitle: "Scope: all system alert sounds", action: nil, keyEquivalent: "")
-        menu.addItem(.separator())
-        toggleItem = menu.addItem(withTitle: "Automatic quiet", action: #selector(toggle), keyEquivalent: "")
+        heading("Camera Quiet")
+        toggleItem = menu.addItem(withTitle: "Enable", action: #selector(toggle), keyEquivalent: "")
         menu.addItem(withTitle: "Restore sounds for this camera session", action: #selector(restore), keyEquivalent: "")
-        menu.addItem(withTitle: "Status and scope…", action: #selector(details), keyEquivalent: "")
+        titleItem = menu.addItem(withTitle: status.title, action: nil, keyEquivalent: "")
+        menu.addItem(withTitle: "Scope: all system alerts…", action: #selector(soundSettings), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Utilipilled", action: nil, keyEquivalent: "")
+        heading("Keep Awake")
+        awakeItem = menu.addItem(withTitle: "Enable", action: #selector(toggleKeepAwake), keyEquivalent: "")
+        durationItem = menu.addItem(withTitle: "Duration", action: nil, keyEquivalent: "")
+        let durations = NSMenu()
+        for (index, duration) in KeepAwakeModule.Duration.allCases.enumerated() {
+            let entry = durations.addItem(withTitle: duration.rawValue, action: #selector(selectDuration(_:)), keyEquivalent: "")
+            entry.tag = index; entry.target = self
+        }
+        durationItem.submenu = durations
+        menu.addItem(.separator())
+        heading("Utilipilled")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
-        menu.addItem(withTitle: "Open Sound settings…", action: #selector(soundSettings), keyEquivalent: "")
         menu.addItem(withTitle: "About Utilipilled…", action: #selector(about), keyEquivalent: "")
-        menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit Utilipilled and restore sounds", action: #selector(quit), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit Utilipilled", action: #selector(quit), keyEquivalent: "q")
         for entry in menu.items where entry.action != nil { entry.target = self }
         item.menu = menu
         engine.onStatus = { [weak self] status in self?.status = status; self?.render() }
+        keepAwake.onChange = { [weak self] in self?.render() }
+        do { try keepAwake.resume() }
+        catch {
+            let alert = NSAlert(); alert.messageText = "Keep Awake could not resume"
+            alert.informativeText = error.localizedDescription; alert.runModal()
+        }
         render(); engine.start()
         let center = NSWorkspace.shared.notificationCenter
         observers.append(center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(true) })
-        observers.append(center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(false) })
+        observers.append(center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(false); self?.keepAwake.checkExpiration() })
         observers.append(center.addObserver(forName: NSWorkspace.willPowerOffNotification, object: nil, queue: .main) { _ in NSApp.terminate(nil) })
         for sig in [SIGTERM, SIGINT] {
             signal(sig, SIG_IGN)
@@ -134,9 +162,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let description = "Utilipilled · Keep Awake: \(keepAwake.isEnabled ? "On" : "Off") · Camera Quiet: \(status.title)"
         item.button?.toolTip = description
         item.button?.setAccessibilityLabel(description)
-        titleItem.title = status.title
-        awakeItem.state = keepAwake.isEnabled ? .on : .off
-        toggleItem.state = enabled ? .on : .off
+        titleItem.title = "Status: " + status.title
+        awakeItem.title = keepAwake.isEnabled ? "Disable" : "Enable"
+        toggleItem.title = enabled ? "Disable" : "Enable"
+        durationItem.title = "Duration: " + keepAwake.duration.rawValue
+        for entry in durationItem.submenu?.items ?? [] {
+            entry.state = entry.title == keepAwake.duration.rawValue ? .on : .off
+        }
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
@@ -160,10 +192,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         engine.setEnabled(enabled); render()
     }
     @objc private func restore() { engine.restoreNow() }
-    @objc private func details() {
-        let a = NSAlert(); a.messageText = status.title
-        a.informativeText = status.detail + "\n\nThe Camera Quiet module changes the Mac’s alert volume, including Messages notifications and other system alerts. Banners, badges, Focus, output volume, microphone and camera access are untouched. Apps playing sounds as ordinary media can bypass this control.\n\nA user change to nonzero alert volume is respected until all cameras stop. Use ‘Restore sounds for this camera session’ for an explicit override."
-        a.runModal()
+    @objc private func selectDuration(_ sender: NSMenuItem) {
+        let values = KeepAwakeModule.Duration.allCases
+        guard values.indices.contains(sender.tag) else { return }
+        do { try keepAwake.setDuration(values[sender.tag]) }
+        catch {
+            let alert = NSAlert(); alert.messageText = "Duration could not be changed"
+            alert.informativeText = error.localizedDescription; alert.runModal()
+        }
+        render()
     }
     @objc private func login() {
         do {
@@ -185,7 +222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func quit() { NSApp.terminate(nil) }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         trace("Termination requested")
-        try? keepAwake.setEnabled(false)
+        keepAwake.suspend()
         guard engine != nil else { return .terminateNow }
         if quitting { return .terminateLater }
         quitting = true

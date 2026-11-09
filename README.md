@@ -31,16 +31,20 @@ Open Utilipilled once. Camera Quiet is enabled by default and runs in the backgr
 - The **on** artwork appears while Keep Awake is enabled or Camera Quiet is suppressing alert sounds. The menu shows each module's status.
 - Allow about two seconds for alert sounds to return after the last camera stops.
 
+The menu groups Camera Quiet, Keep Awake, and app settings under section headings. **Scope: all system alerts…** opens macOS Sound settings.
+
 The menu lets you:
 
-- Toggle **Keep screen awake**. It starts off each time you launch the app.
-- Toggle **Automatic quiet**. Turning it off restores sounds.
+- Use **Enable / Disable** under **Keep Awake**, then choose **Duration**: 30 min, 12 hours, Until restart, or Indefinitely.
+- Use **Enable / Disable** under **Camera Quiet**. Disabling it restores sounds.
 - **Restore sounds for this camera session**, restoring your previous setting and pausing suppression until all cameras become idle.
 - Enable **Launch at login** to start automatically.
 - Open **About Utilipilled…** for version information and icon credits.
-- **Quit Utilipilled and restore sounds**.
+- **Quit Utilipilled**.
 
 If you manually raise Alert volume during a camera session, Utilipilled keeps your new setting for that session. Use the menu's restore command for an explicit override.
+
+Timed sessions retain their original deadline when you relaunch the app. **Until restart** resumes on relaunch during the same Mac boot; **Indefinitely** also resumes after a Mac restart when Utilipilled launches. Quitting releases sleep prevention; reopening resumes an unexpired session. Disabling Keep Awake cancels the session.
 
 Keep Awake prevents idle display and system sleep without changing your saved sleep settings. Normal sleep behavior returns when you turn it off, quit, or the app crashes. Closing the lid, choosing Sleep manually, and low-battery sleep still take precedence. It does not simulate mouse activity or override screen-lock policies.
 
@@ -48,7 +52,7 @@ Keep Awake prevents idle display and system sleep without changing your saved sl
 
 A separate helper attempts to restore alert volume if the app crashes. If alerts remain silent:
 
-1. Reopen Utilipilled, then choose **Quit Utilipilled and restore sounds**.
+1. Reopen Utilipilled, then choose **Quit Utilipilled**.
 2. Or adjust **System Settings → Sound → Alert volume** manually.
 
 You can also quit the app and retry recovery from Terminal:
