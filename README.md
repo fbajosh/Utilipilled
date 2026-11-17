@@ -31,7 +31,7 @@ Open Utilipilled once. Camera Quiet is enabled by default and runs in the backgr
 - The **on** artwork appears while Keep Awake is enabled or Camera Quiet is suppressing alert sounds. The menu shows each module's status.
 - Allow about two seconds for alert sounds to return after the last camera stops.
 
-The menu groups Camera Quiet, Keep Awake, and app settings under section headings. **Scope: all system alerts…** opens macOS Sound settings.
+The menu groups Camera Quiet, Keep Awake, Percentage Hider, and app settings under section headings. **Scope: all system alerts…** opens macOS Sound settings.
 
 The menu lets you:
 
@@ -47,6 +47,16 @@ If you manually raise Alert volume during a camera session, Utilipilled keeps yo
 Timed sessions retain their original deadline when you relaunch the app. **Until restart** resumes on relaunch during the same Mac boot; **Indefinitely** also resumes after a Mac restart when Utilipilled launches. Quitting releases sleep prevention; reopening resumes an unexpired session. Disabling Keep Awake cancels the session.
 
 Keep Awake prevents idle display and system sleep without changing your saved sleep settings. Normal sleep behavior returns when you turn it off, quit, or the app crashes. Closing the lid, choosing Sleep manually, and low-battery sleep still take precedence. It does not simulate mouse activity or override screen-lock policies.
+
+## Percentage Hider
+
+Choose **Enable** in the Percentage Hider section to control the native battery display. Its Threshold submenu has three independent choices:
+
+- **100%, 90%, or 80%:** hide at or above the selected level.
+- **When charging or Always:** apply the threshold only during actual charging, or regardless of charging state.
+- **Battery, Percentage, or Both:** choose which native menu-bar items to hide.
+
+Defaults are Disabled, 90%, Always, and Percentage. The icon stays inactive for this module unless it is actually hiding something. Battery changes are handled through system notifications. Switching targets restores the setting no longer controlled; disabling or quitting restores your original settings. Settings and recovery state survive relaunches.
 
 ## If sounds don't return
 

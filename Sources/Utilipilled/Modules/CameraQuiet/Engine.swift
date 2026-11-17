@@ -75,7 +75,7 @@ final class CameraQuietModule {
             else if !snapshot.known && !snapshot.active { title = "Camera state uncertain — waiting" }
             else if session.ownsMute { title = "Camera in use — system alerts silent" }
             else if wasActive { title = "Camera in use — keeping your sound setting" }
-            else { title = "Ready — camera idle" }
+            else { title = "Ready, camera idle" }
             let detail = "\(snapshot.running.count) active / \(snapshot.devices.count) detected cameras. " +
                 (session.ownsMute ? "All system alert sounds are quiet; call/media volume is unchanged." : "Banners and call/media volume are unchanged.")
             publish(Status(title: title, detail: detail, cameraActive: wasActive, quiet: session.ownsMute))
