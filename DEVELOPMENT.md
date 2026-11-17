@@ -13,7 +13,7 @@ The app bundle is written to `dist/Utilipilled.app`; build caches stay in `.buil
 
 `Support/AppIcon.icon` is the editable Icon Composer source. The build compiles it into `Assets.car` for layered icons and an `AppIcon.icns` fallback for older macOS versions. Building the complete app requires Xcode's asset compiler; `./test.sh` also works with Command Line Tools alone. PR builds provide a preview app ZIP in Actions, retained for one day.
 
-`Support/MenuBar.xcassets` contains the original on/off SVG artwork. The same asset compiler bundles these as vector template images so AppKit can tint them for light and dark menu bars. The status item always opens the menu; only menu commands change module state.
+`Support/MenuBar.xcassets` contains the supplied, modified on/off SVG artwork. The same asset compiler bundles these as vector template images so AppKit can tint them for light and dark menu bars. The status item always opens the menu; only menu commands change module state.
 
 Keep Awake holds a `PreventUserIdleDisplaySleep` IOKit assertion while enabled. This also prevents idle system sleep. The module saves the selected duration and active session. Timed sessions use both a native assertion timeout and a main-run-loop timer; relaunch retains the deadline. Until-restart sessions are tied to the kernel boot-session UUID. Normal exit releases the assertion, and macOS releases it if the process crashes. It does not write power preferences or simulate input.
 
@@ -63,3 +63,23 @@ Do not delete an unresolved recovery record or bypass an active lock. For a malf
 `--state-dir PATH` supplies an isolated directory for development. System alert volume remains shared across the login session: never run competing volume-controlling instances with different state directories.
 
 Changes to an already-zero alert setting cannot be detected, and external changes cannot be made atomic with Apple's scripting interface. The explicit restore command handles manual overrides. Recovery may require a later launch or manual adjustment if both processes disappear or the audio service remains unavailable.
+
+## Preview locally before pushing
+
+With Utilipilled already installed in Applications, run:
+
+```sh
+./preview.sh
+```
+
+This rebuilds the current Swift source, reuses the installed app's compiled artwork, signs the preview, quits the installed app normally, replaces it, and reopens it. The previous app is retained under `.build/preview-backup-*`. It does not commit, push, tag, or publish anything. Future Homebrew upgrades can replace this local preview.
+
+This path works with Command Line Tools alone for code and menu changes. To preview artwork changes, install full Xcode and use `./build.sh` to compile the icon assets. `./build.sh --preview` builds a preview in `dist` without installing it.
+
+## Percentage Hider
+
+IOKit power-source run-loop notifications trigger a serialized background update; there is no battery polling timer. Only the internal battery is considered. Charging means the battery's `Is Charging` value, including the distinction between charging and merely being plugged in.
+
+The module uses `defaults -currentHost` for Control Center's `BatteryShowPercentage` boolean and `Battery` icon setting (2 shown, 8 hidden on the verified target Mac). It compares effective visibility before writing. Original values, including absent keys, are saved before mutation and retained on failure. Disable and normal quit restore them; relaunch reuses pending recovery state. Other Control Center preferences are untouched.
+
+`Support/check_percentage_hider.swift`, run by `test.sh`, tests thresholds, charging modes, target switching, write deduplication, original-setting restoration and write/restore failures using isolated preferences and fake native writes.

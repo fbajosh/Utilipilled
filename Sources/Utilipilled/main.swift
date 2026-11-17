@@ -58,10 +58,11 @@ if args.contains("--recover") || args.contains("--exercise-session") {
     } catch { fail(error) }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var item: NSStatusItem!
     private var engine: CameraQuietModule!
     private let keepAwake = KeepAwakeModule()
+    private let percentageHider = PercentageHiderModule()
     private var lock: InstanceLock?
     private var observers: [NSObjectProtocol] = []
     private var signals: [DispatchSourceSignal] = []
@@ -81,6 +82,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var loginItem: NSMenuItem!
     private var titleItem: NSMenuItem!
     private var durationItem: NSMenuItem!
+    private var percentageItem: NSMenuItem!
+    private var thresholdItem: NSMenuItem!
+    private var percentageErrorItem: NSMenuItem!
     private var quitting = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -129,6 +133,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         durationItem.submenu = durations
         menu.addItem(.separator())
+        heading("Percentage Hider")
+        percentageItem = menu.addItem(withTitle: "Enable", action: #selector(togglePercentageHider), keyEquivalent: "")
+        thresholdItem = menu.addItem(withTitle: "Threshold", action: nil, keyEquivalent: "")
+        let thresholds = NSMenu()
+        for value in PercentageHiderPolicy.thresholds {
+            let entry = thresholds.addItem(withTitle: "\(value)%", action: #selector(selectPercentageThreshold(_:)), keyEquivalent: "")
+            entry.tag = value; entry.target = self
+        }
+        thresholds.addItem(.separator())
+        for (index, mode) in PercentageHiderModule.Mode.allCases.enumerated() {
+            let entry = thresholds.addItem(withTitle: mode.rawValue, action: #selector(selectPercentageMode(_:)), keyEquivalent: "")
+            entry.tag = index; entry.target = self
+        }
+        thresholds.addItem(.separator())
+        for (index, target) in PercentageHiderModule.Target.allCases.enumerated() {
+            let entry = thresholds.addItem(withTitle: target.rawValue, action: #selector(selectPercentageTarget(_:)), keyEquivalent: "")
+            entry.tag = index; entry.target = self
+        }
+        thresholdItem.submenu = thresholds
+        percentageErrorItem = menu.addItem(withTitle: "", action: nil, keyEquivalent: "")
+        percentageErrorItem.isHidden = true
+        menu.addItem(.separator())
         heading("Utilipilled")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
         menu.addItem(withTitle: "About Utilipilled…", action: #selector(about), keyEquivalent: "")
@@ -142,7 +168,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let alert = NSAlert(); alert.messageText = "Keep Awake could not resume"
             alert.informativeText = error.localizedDescription; alert.runModal()
         }
-        render(); engine.start()
+        percentageHider.onChange = { [weak self] in self?.render() }
+        render(); engine.start(); percentageHider.start()
         let center = NSWorkspace.shared.notificationCenter
         observers.append(center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(true) })
         observers.append(center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(false); self?.keepAwake.checkExpiration() })
@@ -158,8 +185,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     private func render() {
-        item.button?.image = MenuBarIcon.image(active: keepAwake.isEnabled || status.quiet)
-        let description = "Utilipilled · Keep Awake: \(keepAwake.isEnabled ? "On" : "Off") · Camera Quiet: \(status.title)"
+        item.button?.image = MenuBarIcon.image(active: keepAwake.isEnabled || status.quiet || percentageHider.isHiding)
+        let description = "Utilipilled\nCamera Quiet: \(status.title)\nKeep Awake: \(keepAwake.isEnabled ? "On" : "Off")\nPercentage Hider: \(percentageHider.isHiding ? "Hiding" : "Not hiding")"
         item.button?.toolTip = description
         item.button?.setAccessibilityLabel(description)
         titleItem.title = "Status: " + status.title
@@ -169,7 +196,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for entry in durationItem.submenu?.items ?? [] {
             entry.state = entry.title == keepAwake.duration.rawValue ? .on : .off
         }
+        percentageItem.title = percentageHider.enabled ? "Disable" : "Enable"
+        thresholdItem.title = "Threshold: \(percentageHider.threshold)%"
+        for entry in thresholdItem.submenu?.items ?? [] {
+            if entry.action == #selector(selectPercentageThreshold(_:)) {
+                entry.state = entry.tag == percentageHider.threshold ? .on : .off
+            } else if entry.action == #selector(selectPercentageMode(_:)) {
+                entry.state = entry.title == percentageHider.mode.rawValue ? .on : .off
+            } else if entry.action == #selector(selectPercentageTarget(_:)) {
+                entry.state = entry.title == percentageHider.target.rawValue ? .on : .off
+            }
+        }
+        percentageErrorItem.title = percentageHider.errorMessage ?? ""
+        percentageErrorItem.isHidden = percentageHider.errorMessage == nil
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
+        item.menu?.update()
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         item.isVisible = true
@@ -191,7 +232,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         enabled.toggle(); UserDefaults.standard.set(!enabled, forKey: "cameraQuiet.paused")
         engine.setEnabled(enabled); render()
     }
-    @objc private func restore() { engine.restoreNow() }
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        menuItem.action != #selector(restore) || status.cameraActive
+    }
+    @objc private func restore() {
+        guard status.cameraActive else { return }
+        engine.restoreNow()
+    }
     @objc private func selectDuration(_ sender: NSMenuItem) {
         let values = KeepAwakeModule.Duration.allCases
         guard values.indices.contains(sender.tag) else { return }
@@ -201,6 +248,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.informativeText = error.localizedDescription; alert.runModal()
         }
         render()
+    }
+    @objc private func togglePercentageHider() {
+        percentageHider.setEnabled(!percentageHider.enabled); render()
+    }
+    @objc private func selectPercentageThreshold(_ sender: NSMenuItem) {
+        percentageHider.setThreshold(sender.tag); render()
+    }
+    @objc private func selectPercentageMode(_ sender: NSMenuItem) {
+        let modes = PercentageHiderModule.Mode.allCases
+        guard modes.indices.contains(sender.tag) else { return }
+        percentageHider.setMode(modes[sender.tag]); render()
+    }
+    @objc private func selectPercentageTarget(_ sender: NSMenuItem) {
+        let targets = PercentageHiderModule.Target.allCases
+        guard targets.indices.contains(sender.tag) else { return }
+        percentageHider.setTarget(targets[sender.tag]); render()
     }
     @objc private func login() {
         do {
@@ -227,14 +290,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if quitting { return .terminateLater }
         quitting = true
         engine.stop { error in
-            trace("Stop callback reached")
-            if let error = error {
-                let a = NSAlert(); a.messageText = "Sounds could not be restored"
-                a.informativeText = error.localizedDescription + "\nThe recovery record was kept. Set Alert volume in Sound settings, or relaunch Utilipilled to retry."
-                a.runModal()
+            self.percentageHider.stop { percentageError in
+                trace("Stop callback reached")
+                if let error = error {
+                    let a = NSAlert(); a.messageText = "Sounds could not be restored"
+                    a.informativeText = error.localizedDescription + "\nThe recovery record was kept. Set Alert volume in Sound settings, or relaunch Utilipilled to retry."
+                    a.runModal()
+                }
+                if let percentageError {
+                    let alert = NSAlert(); alert.messageText = "Battery display could not be restored"
+                    alert.informativeText = percentageError.localizedDescription + " Reopen Utilipilled to retry."
+                    alert.runModal()
+                }
+                trace("Replying to Cocoa termination")
+                NSApp.reply(toApplicationShouldTerminate: true)
             }
-            trace("Replying to Cocoa termination")
-            NSApp.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
     }

@@ -1,7 +1,16 @@
 #!/bin/zsh
 set -euo pipefail
 cd "${0:A:h}"
-if ! xcrun --find actool >/dev/null 2>&1; then
+preview_source=""
+if [[ "$#" -eq 1 && "$1" == "--preview" ]]; then
+  preview_source="/Applications/Utilipilled.app"
+  codesign --verify --strict "$preview_source"
+  print "Local preview uses installed artwork. Icon edits require full Xcode."
+elif [[ "$#" -ne 0 ]]; then
+  print -u2 "Usage: ./build.sh [--preview]"
+  exit 2
+fi
+if [[ -z "$preview_source" ]] && ! xcrun --find actool >/dev/null 2>&1; then
   print -u2 "Building the app icon requires full Xcode 26 or later. Select Xcode as the active developer tools."
   exit 1
 fi
@@ -20,6 +29,19 @@ cp Support/Info.plist "$staged_app/Contents/Info.plist"
 cp LICENSE "$staged_app/Contents/Resources/LICENSE"
 cp THIRD_PARTY_NOTICES.md "$staged_app/Contents/Resources/THIRD_PARTY_NOTICES.md"
 cp Support/Credits.rtf "$staged_app/Contents/Resources/Credits.rtf"
+if [[ -n "$preview_source" ]]; then
+  cp "$preview_source/Contents/Resources/Assets.car" "$staged_app/Contents/Resources/Assets.car"
+  cp "$preview_source/Contents/Resources/AppIcon.icns" "$staged_app/Contents/Resources/AppIcon.icns"
+  python3 - "$staged_app/Contents/Info.plist" "$preview_source/Contents/Info.plist" <<'PYINFO'
+from pathlib import Path
+import plistlib, sys
+path = Path(sys.argv[1])
+info = plistlib.loads(path.read_bytes())
+installed = plistlib.loads(Path(sys.argv[2]).read_bytes())
+info.update({key: value for key, value in installed.items() if key.startswith('CFBundleIcon')})
+path.write_bytes(plistlib.dumps(info, sort_keys=False))
+PYINFO
+else
 xcrun actool Support/AppIcon.icon Support/MenuBar.xcassets \
   --compile "$staged_app/Contents/Resources" \
   --app-icon AppIcon --include-all-app-icons --target-device mac \
@@ -34,6 +56,7 @@ info = plistlib.loads(path.read_bytes())
 info.update(plistlib.loads(Path(sys.argv[2]).read_bytes()))
 path.write_bytes(plistlib.dumps(info, sort_keys=False))
 PY
+fi
 test -s "$staged_app/Contents/Resources/Assets.car"
 test -s "$staged_app/Contents/Resources/AppIcon.icns"
 signing_identity="${JOSHTOOLS_SIGNING_IDENTITY:--}"
