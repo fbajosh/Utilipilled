@@ -40,7 +40,7 @@ For a manual release, disable **Build and release** in Actions before merging th
 
 The default build uses an ad-hoc signature. A downloaded copy may be blocked until the user approves it through macOS Privacy & Security. The cask does not remove quarantine, alter Gatekeeper settings, or claim the app is notarized. It is a personal tap, not a submission to Homebrew's official catalog. A failed Gatekeeper audit is expected until a Developer ID signed and notarized build is released.
 
-The cask's `uninstall quit:` requests the app's standard quit path during removal, upgrade and reinstall. The camera module completes restoration before replying. The recovery directory is intentionally excluded from `zap`, and startup at login stays opt-in. If the app cannot quit or restore, resolve that error first; a Brew quit request alone is not an independent guarantee that a damaged app has recovered.
+The cask's `uninstall quit:` requests the app's standard quit path during removal, upgrade and reinstall. The camera pill completes restoration before replying. The recovery directory is intentionally excluded from `zap`, and startup at login stays opt-in. If the app cannot quit or restore, resolve that error first; a Brew quit request alone is not an independent guarantee that a damaged app has recovered.
 
 ## Optional Developer ID signing and notarization
 

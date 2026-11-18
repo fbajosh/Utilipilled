@@ -115,7 +115,7 @@ final class InstanceLock {
         fd = try self.directory.openPrivateRegularFile(name, flags: O_CREAT | O_RDWR)
         if flock(fd, LOCK_EX | LOCK_NB) != 0 {
             close(fd); fd = -1
-            throw QuietError.failure("Utilipilled / Camera Quiet is already running (or recovering). Quit it before using --recover.")
+            throw QuietError.failure("Utilipilled / NotificationRot is already running (or recovering). Quit it before using --recover.")
         }
     }
     deinit { if fd >= 0 { flock(fd, LOCK_UN); close(fd) } }

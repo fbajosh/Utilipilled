@@ -9,7 +9,7 @@ struct Status: Equatable {
     var error: Bool = false
 }
 
-final class CameraQuietModule {
+final class CameraQuietPill {
     private let queue = DispatchQueue(label: "CameraQuiet.control", qos: .utility)
     private var timer: DispatchSourceTimer?
     private let volume: GuardedAlertVolume
