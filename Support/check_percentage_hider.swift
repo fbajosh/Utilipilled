@@ -8,8 +8,8 @@ enum PercentageHiderChecks {
         let suite = "local.Utilipilled.percentage-test.\(UUID().uuidString)"
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
-        let module = PercentageHiderModule(defaults: prefs)
-        precondition(!module.enabled && module.threshold == 90 && module.mode == .always && module.target == .percentage)
+        let pill = PercentageHiderPill(defaults: prefs)
+        precondition(!pill.enabled && pill.threshold == 90 && pill.mode == .always && pill.target == .percentage)
         for threshold in Policy.thresholds {
             for mode in Policy.Mode.allCases {
                 for charging in [false, true] {

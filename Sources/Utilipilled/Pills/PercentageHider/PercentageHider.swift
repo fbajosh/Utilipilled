@@ -82,7 +82,7 @@ final class PercentageHiderSession {
     }
 }
 
-final class PercentageHiderModule {
+final class PercentageHiderPill {
     typealias Mode = PercentageHiderPolicy.Mode
     typealias Target = PercentageHiderPolicy.Target
     typealias Setting = PercentageHiderPolicy.Setting
@@ -112,7 +112,7 @@ final class PercentageHiderModule {
         guard source == nil else { return }
         source = IOPSNotificationCreateRunLoopSource({ context in
             guard let context else { return }
-            Unmanaged<PercentageHiderModule>.fromOpaque(context).takeUnretainedValue().refresh()
+            Unmanaged<PercentageHiderPill>.fromOpaque(context).takeUnretainedValue().refresh()
         }, Unmanaged.passUnretained(self).toOpaque())?.takeRetainedValue()
         if let source { CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes) }
         refresh()

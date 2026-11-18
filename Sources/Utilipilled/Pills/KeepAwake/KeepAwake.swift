@@ -2,7 +2,7 @@ import Foundation
 import IOKit.pwr_mgt
 import Darwin
 
-final class KeepAwakeModule {
+final class KeepAwakePill {
     enum Duration: String, CaseIterable {
         case halfHour = "30 min", twelveHours = "12 hours"
         case untilRestart = "Until restart", indefinitely = "Indefinitely"
@@ -83,7 +83,7 @@ final class KeepAwakeModule {
         var identifier: IOPMAssertionID = 0
         let result = IOPMAssertionCreateWithDescription(
             kIOPMAssertionTypePreventUserIdleDisplaySleep as CFString,
-            "Utilipilled Keep Awake" as CFString, nil, nil, nil,
+            "Utilipilled CaffeinePilled" as CFString, nil, nil, nil,
             end.map { max(0.001, $0.timeIntervalSinceNow) } ?? 0,
             kIOPMAssertionTimeoutActionTurnOff as CFString, &identifier)
         guard result == kIOReturnSuccess else { throw Failure(code: result) }

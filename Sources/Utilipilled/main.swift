@@ -11,7 +11,7 @@ func argument(_ name: String) -> String? {
     guard let i = args.firstIndex(of: name), i + 1 < args.count else { return nil }
     return args[i + 1]
 }
-// Preserve the module's recovery namespace and lock across the original app rename.
+// Preserve the pill's recovery namespace and lock across the original app rename.
 // This also prevents the old CameraQuiet app and Utilipilled from muting concurrently.
 let directory = argument("--state-dir").map { URL(fileURLWithPath: $0, isDirectory: true) } ??
     FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/CameraQuiet", isDirectory: true)
@@ -58,11 +58,12 @@ if args.contains("--recover") || args.contains("--exercise-session") {
     } catch { fail(error) }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, NSMenuDelegate {
     private var item: NSStatusItem!
-    private var engine: CameraQuietModule!
-    private let keepAwake = KeepAwakeModule()
-    private let percentageHider = PercentageHiderModule()
+    private var engine: CameraQuietPill!
+    private let keepAwake = KeepAwakePill()
+    private let percentageHider = PercentageHiderPill()
+    private let switcherHider = SwitcherHiderPill()
     private var lock: InstanceLock?
     private var observers: [NSObjectProtocol] = []
     private var signals: [DispatchSourceSignal] = []
@@ -85,11 +86,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     private var percentageItem: NSMenuItem!
     private var thresholdItem: NSMenuItem!
     private var percentageErrorItem: NSMenuItem!
+    private var switcherItem: NSMenuItem!
+    private var switcherAppsItem: NSMenuItem!
+    private var claudeTargetItem: NSMenuItem!
+    private var claudeTargetTimer: Timer?
     private var quitting = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
             lock = try InstanceLock(directory: directory)
-            engine = try CameraQuietModule(directory: directory, enabled: enabled)
+            engine = try CameraQuietPill(directory: directory, enabled: enabled)
         } catch {
             let a = NSAlert(); a.messageText = "Utilipilled could not start"; a.informativeText = error.localizedDescription
             a.runModal(); NSApp.terminate(nil); return
@@ -117,23 +122,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         heading("Utilipilled", primary: true)
         menu.addItem(.separator())
-        heading("Camera Quiet")
+        heading("NotificationRot")
         toggleItem = menu.addItem(withTitle: "Enable", action: #selector(toggle), keyEquivalent: "")
         menu.addItem(withTitle: "Restore sounds for this camera session", action: #selector(restore), keyEquivalent: "")
         titleItem = menu.addItem(withTitle: status.title, action: nil, keyEquivalent: "")
         menu.addItem(withTitle: "Scope: all system alerts…", action: #selector(soundSettings), keyEquivalent: "")
         menu.addItem(.separator())
-        heading("Keep Awake")
+        heading("CaffeinePilled")
         awakeItem = menu.addItem(withTitle: "Enable", action: #selector(toggleKeepAwake), keyEquivalent: "")
         durationItem = menu.addItem(withTitle: "Duration", action: nil, keyEquivalent: "")
         let durations = NSMenu()
-        for (index, duration) in KeepAwakeModule.Duration.allCases.enumerated() {
+        for (index, duration) in KeepAwakePill.Duration.allCases.enumerated() {
             let entry = durations.addItem(withTitle: duration.rawValue, action: #selector(selectDuration(_:)), keyEquivalent: "")
             entry.tag = index; entry.target = self
         }
         durationItem.submenu = durations
         menu.addItem(.separator())
-        heading("Percentage Hider")
+        heading("PowerYeeted")
         percentageItem = menu.addItem(withTitle: "Enable", action: #selector(togglePercentageHider), keyEquivalent: "")
         thresholdItem = menu.addItem(withTitle: "Threshold", action: nil, keyEquivalent: "")
         let thresholds = NSMenu()
@@ -142,12 +147,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             entry.tag = value; entry.target = self
         }
         thresholds.addItem(.separator())
-        for (index, mode) in PercentageHiderModule.Mode.allCases.enumerated() {
+        for (index, mode) in PercentageHiderPill.Mode.allCases.enumerated() {
             let entry = thresholds.addItem(withTitle: mode.rawValue, action: #selector(selectPercentageMode(_:)), keyEquivalent: "")
             entry.tag = index; entry.target = self
         }
         thresholds.addItem(.separator())
-        for (index, target) in PercentageHiderModule.Target.allCases.enumerated() {
+        for (index, target) in PercentageHiderPill.Target.allCases.enumerated() {
             let entry = thresholds.addItem(withTitle: target.rawValue, action: #selector(selectPercentageTarget(_:)), keyEquivalent: "")
             entry.tag = index; entry.target = self
         }
@@ -155,21 +160,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         percentageErrorItem = menu.addItem(withTitle: "", action: nil, keyEquivalent: "")
         percentageErrorItem.isHidden = true
         menu.addItem(.separator())
+        heading("SwitcherMogged")
+        switcherItem = menu.addItem(withTitle: "Enable", action: #selector(toggleSwitcherHider), keyEquivalent: "")
+        switcherAppsItem = menu.addItem(withTitle: "Hide apps: 0", action: nil, keyEquivalent: "")
+        switcherAppsItem.submenu = switcherHider.appsMenu
+        menu.addItem(.separator())
+        claudeTargetItem = menu.addItem(withTitle: ClaudeTarget.title(), action: nil, keyEquivalent: "")
+        menu.addItem(.separator())
         heading("Utilipilled")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
         menu.addItem(withTitle: "About Utilipilled…", action: #selector(about), keyEquivalent: "")
         menu.addItem(withTitle: "Quit Utilipilled", action: #selector(quit), keyEquivalent: "q")
         for entry in menu.items where entry.action != nil { entry.target = self }
+        menu.delegate = self
         item.menu = menu
         engine.onStatus = { [weak self] status in self?.status = status; self?.render() }
         keepAwake.onChange = { [weak self] in self?.render() }
         do { try keepAwake.resume() }
         catch {
-            let alert = NSAlert(); alert.messageText = "Keep Awake could not resume"
+            let alert = NSAlert(); alert.messageText = "CaffeinePilled could not resume"
             alert.informativeText = error.localizedDescription; alert.runModal()
         }
         percentageHider.onChange = { [weak self] in self?.render() }
-        render(); engine.start(); percentageHider.start()
+        switcherHider.onChange = { [weak self] in self?.render() }
+        render(); engine.start(); percentageHider.start(); switcherHider.start()
         let center = NSWorkspace.shared.notificationCenter
         observers.append(center.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(true) })
         observers.append(center.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.sleep(false); self?.keepAwake.checkExpiration() })
@@ -184,15 +198,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
             }; source.resume(); signals.append(source)
         }
     }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        switcherHider.checkAvailability()
+        updateHiddenAppsTitle()
+        claudeTargetItem.title = ClaudeTarget.title()
+    }
+    func menuWillOpen(_ menu: NSMenu) {
+        claudeTargetTimer?.invalidate()
+        let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+            self?.claudeTargetItem.title = ClaudeTarget.title()
+        }
+        timer.tolerance = 5
+        RunLoop.main.add(timer, forMode: .common)
+        claudeTargetTimer = timer
+    }
+    func menuDidClose(_ menu: NSMenu) {
+        claudeTargetTimer?.invalidate(); claudeTargetTimer = nil
+    }
     private func render() {
-        item.button?.image = MenuBarIcon.image(active: keepAwake.isEnabled || status.quiet || percentageHider.isHiding)
-        let description = "Utilipilled\nCamera Quiet: \(status.title)\nKeep Awake: \(keepAwake.isEnabled ? "On" : "Off")\nPercentage Hider: \(percentageHider.isHiding ? "Hiding" : "Not hiding")"
+        item.button?.image = MenuBarIcon.image(active: keepAwake.isEnabled || status.quiet || percentageHider.isHiding || switcherHider.enabled)
+        let description = "Utilipilled\nNotificationRot: \(menuContinuation(status.title))\nCaffeinePilled: \(keepAwake.isEnabled ? "on" : "off")\nPowerYeeted: \(percentageHider.isHiding ? "hiding" : "not hiding")\nSwitcherMogged: \(switcherHider.enabled ? "on" : "off")"
         item.button?.toolTip = description
         item.button?.setAccessibilityLabel(description)
-        titleItem.title = "Status: " + status.title
+        titleItem.title = "Status: " + menuContinuation(status.title)
         awakeItem.title = keepAwake.isEnabled ? "Disable" : "Enable"
         toggleItem.title = enabled ? "Disable" : "Enable"
-        durationItem.title = "Duration: " + keepAwake.duration.rawValue
+        durationItem.title = "Duration: " + menuContinuation(keepAwake.duration.rawValue)
         for entry in durationItem.submenu?.items ?? [] {
             entry.state = entry.title == keepAwake.duration.rawValue ? .on : .off
         }
@@ -209,20 +240,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         }
         percentageErrorItem.title = percentageHider.errorMessage ?? ""
         percentageErrorItem.isHidden = percentageHider.errorMessage == nil
+        switcherItem.title = switcherHider.enabled ? "Disable" : "Enable"
+        updateHiddenAppsTitle()
+        switcherItem.toolTip = switcherHider.errorMessage ?? "Development preview; native parity validation is pending."
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         item.menu?.update()
+    }
+    private func menuContinuation(_ text: String) -> String {
+        text.prefix(1).lowercased() + text.dropFirst()
+    }
+    private func updateHiddenAppsTitle() {
+        guard let menu = item?.menu, let switcherAppsItem else { return }
+        // Fit within the menu's existing text width rather than letting a list
+        // of app names stretch the whole menu. Reserve the usual check/arrow area.
+        let font = NSFont.menuFont(ofSize: 0)
+        let otherWidths = menu.items.filter { $0 !== switcherAppsItem && !$0.isHidden }.map {
+            ($0.title as NSString).size(withAttributes: [.font: font]).width
+        }
+        switcherAppsItem.title = switcherHider.hideAppsMenuTitle(maximumWidth: max(210, otherWidths.max() ?? 0))
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         item.isVisible = true
         render()
         NSApp.activate(ignoringOtherApps: true)
-        DispatchQueue.main.async { self.item.button?.performClick(nil) }
+        RunLoop.main.perform(inModes: [.common]) { self.item.button?.performClick(nil) }
         return false
     }
     @objc private func toggleKeepAwake() {
         do { try keepAwake.setEnabled(!keepAwake.isEnabled) }
         catch {
-            let a = NSAlert(); a.messageText = "Keep Awake could not be changed"
+            let a = NSAlert(); a.messageText = "CaffeinePilled could not be changed"
             a.informativeText = error.localizedDescription
             a.runModal()
         }
@@ -240,12 +287,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         engine.restoreNow()
     }
     @objc private func selectDuration(_ sender: NSMenuItem) {
-        let values = KeepAwakeModule.Duration.allCases
+        let values = KeepAwakePill.Duration.allCases
         guard values.indices.contains(sender.tag) else { return }
         do { try keepAwake.setDuration(values[sender.tag]) }
         catch {
             let alert = NSAlert(); alert.messageText = "Duration could not be changed"
             alert.informativeText = error.localizedDescription; alert.runModal()
+        }
+        render()
+    }
+    @objc private func toggleSwitcherHider() {
+        switcherHider.setEnabled(!switcherHider.enabled)
+        if let message = switcherHider.errorMessage {
+            let alert = NSAlert(); alert.messageText = "SwitcherMogged could not be enabled"
+            alert.informativeText = message; alert.runModal()
         }
         render()
     }
@@ -256,12 +311,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         percentageHider.setThreshold(sender.tag); render()
     }
     @objc private func selectPercentageMode(_ sender: NSMenuItem) {
-        let modes = PercentageHiderModule.Mode.allCases
+        let modes = PercentageHiderPill.Mode.allCases
         guard modes.indices.contains(sender.tag) else { return }
         percentageHider.setMode(modes[sender.tag]); render()
     }
     @objc private func selectPercentageTarget(_ sender: NSMenuItem) {
-        let targets = PercentageHiderModule.Target.allCases
+        let targets = PercentageHiderPill.Target.allCases
         guard targets.indices.contains(sender.tag) else { return }
         percentageHider.setTarget(targets[sender.tag]); render()
     }
@@ -286,6 +341,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         trace("Termination requested")
         keepAwake.suspend()
+        switcherHider.suspend()
         guard engine != nil else { return .terminateNow }
         if quitting { return .terminateLater }
         quitting = true
