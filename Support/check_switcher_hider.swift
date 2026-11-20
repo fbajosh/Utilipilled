@@ -7,6 +7,7 @@ enum SwitcherHiderChecks {
         historyAndSession()
         revealCycles()
         revealAfterWrap()
+        alwaysDeprioritizes()
         persistence()
         interception()
         print("Switcher Hider MRU, exclusion/reveal persistence, cycle reveal/reset, session lifecycle, keyboard routing and failure checks passed")
@@ -79,6 +80,8 @@ enum SwitcherHiderChecks {
                                          applicationURL: URL(fileURLWithPath: "/System/Applications/Messages.app"))
         let store = ExclusionStore(defaults: defaults)
         precondition(store.showAfter == .never)
+        store.showAfter = .always
+        precondition(ExclusionStore(defaults: defaults).showAfter == .always)
         store.showAfter = .endOfSecondCycle
         precondition(ExclusionStore(defaults: defaults).showAfter == .endOfSecondCycle)
         store.showAfter = .endOfFirstCycle
@@ -189,6 +192,43 @@ enum SwitcherHiderChecks {
         session.retain([1, 2], hiddenEligible: [])
         session.move(1)
         precondition(session.selected == 2 && !session.hasRevealedHiddenApplications)
+    }
+
+    static func alwaysDeprioritizes() {
+        var session = SwitcherSession()
+        session.begin([1, 2], frontmost: 1, backward: false, hidden: [9, 8, 9, 2], showAfter: .always)
+        precondition(session.applications == [1, 2, 9, 8] && session.selected == 2)
+        precondition(session.hasRevealedHiddenApplications)
+        session.move(1); precondition(session.selected == 9)
+        session.move(1); precondition(session.selected == 8)
+        session.move(1); precondition(session.selected == 1)
+        session.retain([1, 9, 8]); precondition(session.applications == [1, 9, 8])
+        session.end(); precondition(!session.isActive && !session.hasRevealedHiddenApplications)
+        session.begin([1, 2], frontmost: 1, backward: true, hidden: [9, 8], showAfter: .always)
+        precondition(session.selected == 8)
+        for backward in [false, true] {
+            session.begin([1, 2], frontmost: 9, backward: backward, hidden: [9, 8], showAfter: .always)
+            precondition(session.selected == (backward ? 2 : 1)) // Return to primary work in the chosen direction.
+        }
+        var history = ApplicationHistory()
+        history.synchronize([1, 2, 9, 8], frontmost: 1)
+        for foreground: Int32 in [1, 2, 9, 1, 8, 2] {
+            history.activate(foreground)
+            let primary = history.order.filter { $0 != 9 && $0 != 8 }
+            let tail = history.order.filter { $0 == 9 || $0 == 8 }
+            session.begin(primary, frontmost: foreground, backward: false, hidden: tail, showAfter: .always)
+            precondition(session.applications == primary + tail)
+            precondition(primary.contains(session.selected!)) // Frequent swaps stay in primary work.
+            session.end()
+        }
+        session.begin([], frontmost: 9, backward: false, hidden: [9, 8], showAfter: .always)
+        precondition(session.applications == [9, 8] && session.selected == 8)
+        session.begin([1, 2], frontmost: 1, backward: false, showAfter: .always)
+        precondition(session.applications == [1, 2] && session.selected == 2)
+        session.begin([], frontmost: nil, backward: false, showAfter: .always)
+        precondition(!session.isActive)
+        session.begin([1, 2], frontmost: 1, backward: false, hidden: [9], showAfter: .never)
+        precondition(session.applications == [1, 2]) // Always does not leak into a later policy/session.
     }
 
     static func interception() {

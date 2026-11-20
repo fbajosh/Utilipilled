@@ -2,10 +2,11 @@ import Foundation
 
 enum HiddenAppReveal: Int, CaseIterable {
     // Preserve existing raw values; the additional timing gets a new value.
-    case endOfFirstCycle = 1, startOfSecondCycle = 3, endOfSecondCycle = 2, never = 0
+    case always = 4, endOfFirstCycle = 1, startOfSecondCycle = 3, endOfSecondCycle = 2, never = 0
 
     var title: String {
         switch self {
+        case .always: return "Always"
         case .endOfFirstCycle: return "At end of first cycle"
         case .startOfSecondCycle: return "After start of second cycle"
         case .endOfSecondCycle: return "At end of second cycle"
@@ -13,7 +14,13 @@ enum HiddenAppReveal: Int, CaseIterable {
         }
     }
 
-    var completedCyclesBeforeReveal: Int { self == .endOfSecondCycle ? 2 : 1 }
+    var completedCyclesBeforeReveal: Int {
+        switch self {
+        case .always: return 0
+        case .endOfSecondCycle: return 2
+        default: return 1
+        }
+    }
 }
 
 struct ExcludedApplication: Codable, Equatable {

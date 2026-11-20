@@ -162,6 +162,7 @@ final class SwitcherHiderPill: NSObject, NSMenuDelegate {
             let entry = menu.addItem(withTitle: setting.title, action: #selector(setShowAfter(_:)), keyEquivalent: "")
             entry.target = self; entry.tag = setting.rawValue
             entry.state = exclusions.showAfter == setting ? .on : .off
+            if setting == .always { entry.toolTip = "Keep these apps visible after your other apps." }
         }
     }
 
