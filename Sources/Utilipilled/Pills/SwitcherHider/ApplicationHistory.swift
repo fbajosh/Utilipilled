@@ -36,6 +36,14 @@ struct SwitcherSession {
         var seen = Set(applications)
         hiddenApplications = hidden.filter { seen.insert($0).inserted }
         self.showAfter = showAfter
+        let foregroundIsDeprioritized = showAfter == .always && !applications.isEmpty &&
+            frontmost.map { hiddenApplications.contains($0) } == true
+        let primarySelection = foregroundIsDeprioritized ? (backward ? applications.last : applications.first) : nil
+        if showAfter == .always {
+            self.applications.append(contentsOf: hiddenApplications)
+            hiddenApplications = []
+            hasRevealedHiddenApplications = true
+        }
         // With no visible apps there is no cycle to traverse. Allow configured
         // reveal as an escape hatch; Never continues to show no excluded apps.
         if applications.isEmpty && showAfter != .never && !hiddenApplications.isEmpty {
@@ -46,7 +54,10 @@ struct SwitcherSession {
         let applications = self.applications
         guard !applications.isEmpty else { selected = nil; return }
         cycleLength = applications.count
-        if let frontmost, let index = applications.firstIndex(of: frontmost) {
+        if let primarySelection {
+            // Enter the primary group at its leading edge in the chosen direction.
+            selected = primarySelection
+        } else if let frontmost, let index = applications.firstIndex(of: frontmost) {
             selected = applications[(index + (backward ? applications.count - 1 : 1)) % applications.count]
             cycleOffset = backward ? -1 : 1
         } else {

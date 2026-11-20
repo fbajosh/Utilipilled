@@ -210,3 +210,13 @@ Current app-section names are NotificationRot, CaffeinePilled, PowerYeeted, Swit
 
 
 Final verification for the terminology/menu/timing pass: the complete local test runner and read-only integration checks passed after the Pill/Pills move, wrap-plus-one timing and names/count summary changes. ClaudeMaxxing's title/date checks passed after the final display-name correction, and the final release build signed/verified successfully. The previous Desktop process quit normally. The Desktop app was atomically replaced with a byte-verified build, its prior bundle was retained under `.build/desktop-backups`, and the new Desktop executable/watchdog were confirmed running. Desktop and dist executable SHA-256 both equal `02fae4b897ec2073a9b1db267d0946be427d59fee9765f967b337bdbca5486cd`. The menu-only app is not exposed by the desktop UI tooling; running-path/hash checks establish build identity, not a new physical-keyboard acceptance result.
+
+
+### Always visible, deprioritized apps
+
+Show hidden apps now starts with Always, followed by the existing reveal timings and Never. Always uses persisted value 4; existing values and the Never default are unchanged. Sessions immediately combine the primary group's MRU list with the checked group's MRU list. Checked apps remain visible for the whole session and cannot enter the primary group simply by becoming recently active. Invoking from a checked foreground enters the primary group at its first app for forward navigation or its last app for backward navigation; if there is no primary group, switching uses the checked apps' normal MRU cycle. Runtime refresh retains the checked apps until dismissal, and the next session rebuilds both groups from current MRU. Other reveal policies continue to reset and hide as before.
+
+Checks cover option order/checkmarks/persistence, immediate controller visibility and refresh retention, ordering across repeated foreground changes, quick primary-app swaps, entry from a deprioritized foreground in both directions, full-group cycling, duplicate IDs, app termination, empty groups, all-checked apps, and changing back to Never. The Always tooltip explains that these apps stay visible after the other apps.
+
+
+Always-mode verification: the full local check runner and read-only menu/controller integration checks passed, and the signed app build succeeded. The existing installed process quit normally; the updated test app was published to the Desktop with the previous Desktop bundle retained under `.build/desktop-backups`. The new Desktop executable and watchdog were confirmed running, and its executable hash matched `dist/Utilipilled.app`. Physical Command-Tab behavior for Always remains a manual test; no tap was enabled by the verification process.
