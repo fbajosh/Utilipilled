@@ -80,7 +80,12 @@ final class SwitcherPanel: NSPanel {
             NSAccessibility.post(element: selected, notification: .focusedUIElementChanged)
         }
     }
-    func dismiss() { orderOut(nil); applications = []; tiles.applications = []; tiles.updateAccessibility() }
+    func dismiss() {
+        orderOut(nil)
+        applications = []; layout = nil
+        tiles.applications = []; tiles.layout = nil; tiles.selected = nil
+        tiles.updateAccessibility(); tiles.updatePresentation()
+    }
 
     func application(at point: CGPoint) -> pid_t? {
         guard isVisible, let primary = NSScreen.screens.first else { return nil }
@@ -88,12 +93,12 @@ final class SwitcherPanel: NSPanel {
         guard let layout else { return nil }
         let location = SwitcherLayout.cocoaPoint(fromQuartz: point, primaryScreen: primary.frame)
         let local = NSPoint(x: location.x - frame.minX, y: location.y - frame.minY)
-        guard let index = layout.index(at: local) else { return nil }
+        guard let index = layout.index(at: local), applications.indices.contains(index) else { return nil }
         return applications[index].pid
     }
 }
 
-private final class SwitcherTiles: NSView, NSSpringLoadingDestination {
+final class SwitcherTiles: NSView, NSSpringLoadingDestination {
     var applications: [SwitcherPresentation] = []
     private let canvas = SwitcherIconCanvas()
     private let selectionMaterial: NSView
@@ -106,7 +111,11 @@ private final class SwitcherTiles: NSView, NSSpringLoadingDestination {
     var selectedAccessibilityElement: NSAccessibilityElement? { selected.flatMap { accessibleTiles[$0] } }
 
     func updateAccessibility() {
-        guard let layout, let window else { return }
+        guard let layout, let window else {
+            accessibleTiles.removeAll()
+            setAccessibilityChildren([]); setAccessibilitySelectedChildren([])
+            return
+        }
         let current = Set(applications.map(\.pid))
         accessibleTiles = accessibleTiles.filter { current.contains($0.key) }
         var children: [NSAccessibilityElement] = []
@@ -151,8 +160,13 @@ private final class SwitcherTiles: NSView, NSSpringLoadingDestination {
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     private func target(_ sender: NSDraggingInfo) -> pid_t? {
-        let point = convert(sender.draggingLocation, from: nil)
-        guard let index = layout?.index(at: point) else { return nil }
+        application(at: convert(sender.draggingLocation, from: nil))
+    }
+
+    func application(at point: CGPoint) -> pid_t? {
+        // Drag/spring-loading callbacks may arrive after dismissal or while the
+        // app list shrinks. Geometry must never index a different list unchecked.
+        guard let index = layout?.index(at: point), applications.indices.contains(index) else { return nil }
         return applications[index].pid
     }
 

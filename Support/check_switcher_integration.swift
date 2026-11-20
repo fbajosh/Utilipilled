@@ -13,6 +13,8 @@ import AppKit
         precondition(!NativeSwitcherGlass.configure(NSView(), role: .container))
         guard let nativeOrder = services.initialApplicationOrder() else { fatalError("Native application order unavailable") }
         precondition(Set(nativeOrder).count == nativeOrder.count)
+        registryLifecycle()
+        staleDragTargets()
         let registry = ApplicationRegistry()
         registry.start()
         precondition(!registry.applications.isEmpty)
@@ -141,6 +143,62 @@ import AppKit
         lifecycle(defaults: defaults)
         print("Switcher integration passed: native order, registry eligibility, menu sections/toggling, disabled persistence, accessibility and cancellation of queued activation, permission gating and interceptor failure fallback")
     }
+    static func staleDragTargets() {
+        let tiles = SwitcherTiles(selectionAddsBlur: false)
+        let layout = SwitcherLayout(count: 3, screen: CGRect(x: 0, y: 0, width: 1440, height: 900))
+        tiles.layout = layout
+        let point = CGPoint(x: layout.tile(at: 2).midX, y: layout.tile(at: 2).midY)
+        let item = SwitcherPresentation(pid: 123, displayName: "Fixture", icon: NSImage(size: NSSize(width: 128, height: 128)))
+        tiles.applications = [item, item, item]
+        precondition(tiles.application(at: point) == 123)
+        tiles.applications = [item] // Termination/shrink before geometry catches up.
+        precondition(tiles.application(at: point) == nil)
+        tiles.applications = [] // A drag callback after dismissal used to trap here.
+        precondition(tiles.application(at: point) == nil)
+        tiles.layout = nil
+        precondition(tiles.application(at: point) == nil)
+        let panel = SwitcherPanel(independentSelection: true, selectionAddsBlur: false)
+        panel.prepareItems([item], selected: item.pid, screenFrame: layout.frame)
+        panel.dismiss()
+        let strip = panel.contentView!.subviews.last as! SwitcherTiles
+        precondition(strip.layout == nil && strip.selected == nil && strip.applications.isEmpty)
+        precondition(strip.accessibilityChildren()?.isEmpty == true)
+    }
+
+    static func registryLifecycle() {
+        let running = NSWorkspace.shared.runningApplications
+        var snapshot = running
+        var reads = 0
+        var changes = 0
+        var registry: ApplicationRegistry? = ApplicationRegistry(runningApplications: { reads += 1; return snapshot })
+        weak var releasedRegistry = registry
+        registry!.onChange = { changes += 1 }
+        registry!.start()
+        precondition(!registry!.applications.isEmpty)
+        let baseline = changes
+        registry!.refreshEligibility()
+        precondition(changes == baseline) // No menu churn for an unchanged snapshot.
+        snapshot = []
+        registry!.refreshEligibility()
+        precondition(registry!.applications.isEmpty && changes == baseline + 1)
+        snapshot = running
+        registry!.refreshEligibility()
+        precondition(!registry!.applications.isEmpty && changes == baseline + 2)
+        // Workspace callbacks are deferred and may be queued before stop/restart.
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.didLaunchApplicationNotification, object: nil)
+        registry!.stop()
+        registry!.start()
+        let restarted = changes
+        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
+        precondition(changes == restarted)
+        registry!.stop()
+        let stoppedReads = reads
+        RunLoop.main.run(until: Date().addingTimeInterval(1.6))
+        precondition(reads == stoppedReads) // The common-mode timer was invalidated.
+        registry = nil
+        precondition(releasedRegistry == nil)
+    }
+
     static func lifecycle(defaults: UserDefaults) {
         defaults.set(false, forKey: "switcherHider.enabled")
         var trusted = false
