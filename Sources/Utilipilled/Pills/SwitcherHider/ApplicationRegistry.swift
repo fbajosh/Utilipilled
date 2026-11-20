@@ -14,11 +14,18 @@ final class ApplicationRegistry {
     private(set) var frontmost: pid_t?
     var onChange: (() -> Void)?
     private var observers: [NSObjectProtocol] = []
-    private var policyObservers: [pid_t: NSKeyValueObservation] = [:]
+    private var policyTimer: Timer?
     private var icons: [URL: NSImage] = [:]
+    private let runningApplications: () -> [NSRunningApplication]
+    private var generation = 0
+
+    init(runningApplications: @escaping () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications }) {
+        self.runningApplications = runningApplications
+    }
 
     func start() {
         guard observers.isEmpty else { return }
+        let token = generation
         let center = NSWorkspace.shared.notificationCenter
         for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification,
                      NSWorkspace.didActivateApplicationNotification, NSWorkspace.didHideApplicationNotification,
@@ -26,25 +33,32 @@ final class ApplicationRegistry {
             observers.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let activated = name == NSWorkspace.didActivateApplicationNotification
                     ? (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.processIdentifier : nil
-                self?.refresh(activated: activated)
+                // Finish AppKit's running-application callback before replacing
+                // application objects or notifying the menu/controller.
+                RunLoop.main.perform(inModes: [.common]) { [weak self] in
+                    guard let self, self.generation == token, !self.observers.isEmpty else { return }
+                    self.refresh(activated: activated)
+                }
             })
         }
         refresh(initialOrder: NativeSwitcherServices.shared.initialApplicationOrder())
+        // Avoid per-process activationPolicy KVO on short-lived application
+        // objects: repeated crash reports end in AppKit's
+        // runningApplicationNotificationCallback. Keep registry mutation out of
+        // that callback and use no per-process observers.
+        // Workspace notifications handle normal changes; polling also catches apps
+        // that become user-facing after their launch notification.
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.refreshEligibility() }
+        timer.tolerance = 0.5
+        policyTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     func refresh(initialOrder: [pid_t]? = nil, activated: pid_t? = nil) {
         if initialOrder != nil {
             history = ApplicationHistory(); nativeOrderAvailable = true
         }
-        let running = NSWorkspace.shared.runningApplications
-        let live = Set(running.map(\.processIdentifier))
-        policyObservers = policyObservers.filter { live.contains($0.key) }
-        // Applications may become user-facing after their launch notification.
-        for app in running where policyObservers[app.processIdentifier] == nil {
-            policyObservers[app.processIdentifier] = app.observe(\.activationPolicy) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.refresh() }
-            }
-        }
+        let running = runningApplications()
         var next: [pid_t: SwitcherApplication] = [:]
         for app in running where app.activationPolicy == .regular && !app.isTerminated {
             guard let bundle = app.bundleIdentifier else { continue }
@@ -74,7 +88,19 @@ final class ApplicationRegistry {
         history.order.compactMap { applications[$0] }.filter { !identifiers.contains($0.record.bundleIdentifier) }
     }
 
-    deinit {
-        for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+    func refreshEligibility() {
+        let eligible = Set(runningApplications().filter {
+            $0.activationPolicy == .regular && !$0.isTerminated && $0.bundleIdentifier != nil
+        }.map(\.processIdentifier))
+        if eligible != Set(applications.keys) { refresh() }
     }
+
+    func stop() {
+        generation += 1
+        policyTimer?.invalidate(); policyTimer = nil
+        for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
+        observers.removeAll()
+    }
+
+    deinit { stop() }
 }
