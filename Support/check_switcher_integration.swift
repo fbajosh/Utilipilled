@@ -55,11 +55,17 @@ import AppKit
         precondition(ExclusionStore(defaults: defaults).showAfter == .startOfSecondCycle)
         precondition(pill.appsMenu.items.filter { $0.state == .on && $0.action == choices[1].action }.map(\.title) == ["After start of second cycle"])
         precondition(pill.hideAppsMenuTitle(maximumWidth: 1000) == "Hide apps: 0")
-        let namesTitle = "Hide apps: Messages, Spotify"
-        let namesWidth = (namesTitle as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)]).width
-        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: ["Messages", "Spotify"], maximumWidth: namesWidth) == namesTitle)
-        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: ["Messages", "Spotify"], maximumWidth: namesWidth - 1) == "Hide apps: 2")
-        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: ["A very long app name"], maximumWidth: 1) == "Hide apps: 1")
+        let names = ["Spotify", "Messages", "A very long third application name"]
+        let allNames = "Hide apps: Spotify, Messages, A very long third application name"
+        let twoNames = "Hide apps: Spotify, Messages & 1 more"
+        let oneName = "Hide apps: Spotify & 2 more"
+        func titleWidth(_ title: String) -> CGFloat {
+            (title as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)]).width
+        }
+        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: names, maximumWidth: titleWidth(allNames)) == allNames)
+        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: names, maximumWidth: titleWidth(twoNames)) == twoNames)
+        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: names, maximumWidth: titleWidth(twoNames) - 1) == oneName)
+        precondition(SwitcherHiderPill.hideAppsMenuTitle(names: names, maximumWidth: titleWidth(oneName) - 1) == "Hide apps: 3")
         pill.appsMenu.performActionForItem(at: separator + 2)
         pill.menuNeedsUpdate(pill.appsMenu)
         precondition(!pill.appsMenu.items.contains { $0.title == "Alpha" })

@@ -180,20 +180,28 @@ final class SwitcherHiderPill: NSObject, NSMenuDelegate {
 
     func hideAppsMenuTitle(maximumWidth: CGFloat) -> String {
         let hiddenIDs = exclusions.identifiers
-        var running: [String: String] = [:]
-        for application in registry.ordered(excluding: []) where hiddenIDs.contains(application.record.bundleIdentifier) {
-            running[application.record.bundleIdentifier] = application.record.displayName
+        var seen = Set<String>()
+        let names = registry.ordered(excluding: []).compactMap { application -> String? in
+            let record = application.record
+            guard hiddenIDs.contains(record.bundleIdentifier),
+                  seen.insert(record.bundleIdentifier).inserted else { return nil }
+            return record.displayName
         }
-        let names = running.values.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
         return Self.hideAppsMenuTitle(names: names, maximumWidth: maximumWidth)
     }
 
     static func hideAppsMenuTitle(names: [String], maximumWidth: CGFloat) -> String {
-        let countTitle = "Hide apps: \(names.count)"
-        guard !names.isEmpty else { return countTitle }
-        let namesTitle = "Hide apps: " + names.joined(separator: ", ")
-        let width = (namesTitle as NSString).size(withAttributes: [.font: NSFont.menuFont(ofSize: 0)]).width
-        return width <= maximumWidth ? namesTitle : countTitle
+        let font = NSFont.menuFont(ofSize: 0)
+        for visibleCount in stride(from: names.count, through: 1, by: -1) {
+            let remaining = names.count - visibleCount
+            let visible = names.prefix(visibleCount).joined(separator: ", ")
+            let suffix = remaining == 0 ? "" : " & \(remaining) more"
+            let title = "Hide apps: " + visible + suffix
+            if (title as NSString).size(withAttributes: [.font: font]).width <= maximumWidth {
+                return title
+            }
+        }
+        return "Hide apps: \(names.count)"
     }
 
     deinit {

@@ -50,6 +50,8 @@ CaffeinePilled prevents idle display and system sleep without changing your save
 
 ## PowerYeeted
 
+While enabled, the **Disable** row shows the battery percentage. A bolt indicates active charging, and a plug indicates external power while charging is paused.
+
 Choose **Enable** in the PowerYeeted section to control the native battery display. Its Threshold submenu has three independent choices:
 
 - **100%, 90%, or 80%:** hide at or above the selected level.
@@ -64,7 +66,7 @@ Defaults are Disabled, 90%, Always, and Percentage. The icon stays inactive for 
 
 **Show hidden apps** offers **Always**, **At end of first cycle**, **After start of second cycle**, **At end of second cycle**, and **Never** (the default). **Always** shows every running app immediately, with your primary apps first and the checked apps grouped at the end. Each group retains its recent-use order, so even a recently used checked app cannot get between your primary apps. A quick switch from a checked app returns to the primary group. **After start of second cycle** wraps selection back normally at the end of the first cycle and reveals hidden apps on the following advancement. The two end-of-cycle choices reveal immediately at their respective boundaries. Hidden apps appear after the visible group, and selection enters the revealed group. For the cycle-based choices, releasing Command or cancelling hides them again and resets the count. Completed cycles count in either direction; reversing partway through a cycle backtracks. The setting survives relaunches. If every running app is hidden, a configured reveal opens the hidden group immediately because there is no visible cycle to traverse.
 
-The Hide apps row lists currently running checked apps when their names fit within the existing menu width, or shows their count when the full list would be too wide. Saved choices for apps that are not running are excluded from this summary.
+The Hide apps row lists running checked apps in the same recent-use order as the switcher. If the full list is too wide, it shows as many leading names as fit with an “& N more” count. If even the first name and count are too wide, it shows only the total. The summary counts running apps only.
 
 The pill is **disabled by default**. The preview supports macOS 26 on Apple silicon. Choose **Enable**, grant Accessibility if requested, then choose **Enable** again. Disabling keeps exclusions. An unavailable or failed keyboard interceptor leaves the native shortcut available, with no saved macOS shortcut changes.
 

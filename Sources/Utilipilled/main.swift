@@ -199,6 +199,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
     }
     func menuNeedsUpdate(_ menu: NSMenu) {
+        percentageHider.refreshBatteryStatus()
+        updatePercentageItem()
         switcherHider.checkAvailability()
         updateHiddenAppsTitle()
         claudeTargetItem.title = ClaudeTarget.title()
@@ -227,7 +229,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         for entry in durationItem.submenu?.items ?? [] {
             entry.state = entry.title == keepAwake.duration.rawValue ? .on : .off
         }
-        percentageItem.title = percentageHider.enabled ? "Disable" : "Enable"
+        updatePercentageItem()
         thresholdItem.title = "Threshold: \(percentageHider.threshold)%"
         for entry in thresholdItem.submenu?.items ?? [] {
             if entry.action == #selector(selectPercentageThreshold(_:)) {
@@ -245,6 +247,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         switcherItem.toolTip = switcherHider.errorMessage ?? "Development preview; native parity validation is pending."
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         item.menu?.update()
+    }
+    private func updatePercentageItem() {
+        let enabled = percentageHider.enabled
+        percentageItem.title = enabled ? "Disable" : "Enable"
+        guard enabled, let battery = percentageHider.batteryStatus else {
+            percentageItem.view = nil
+            return
+        }
+
+        let row = percentageItem.view as? BatteryMenuRow ?? BatteryMenuRow()
+        row.update(percentage: "\(Int(battery.level.rounded()))%",
+                   charging: battery.charging, onExternalPower: battery.onExternalPower)
+        if percentageItem.view !== row { percentageItem.view = row }
     }
     private func menuContinuation(_ text: String) -> String {
         text.prefix(1).lowercased() + text.dropFirst()

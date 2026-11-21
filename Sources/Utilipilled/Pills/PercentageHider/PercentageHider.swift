@@ -95,6 +95,7 @@ final class PercentageHiderPill {
     private(set) var threshold: Int
     private(set) var mode: Mode
     private(set) var target: Target
+    private(set) var batteryStatus: (level: Double, charging: Bool, onExternalPower: Bool)?
     private(set) var isHiding = false
     private(set) var errorMessage: String?
     var onChange: (() -> Void)?
@@ -130,9 +131,13 @@ final class PercentageHiderPill {
     func setTarget(_ value: Target) {
         target = value; defaults.set(value.rawValue, forKey: "percentageHider.target"); refresh()
     }
+    func refreshBatteryStatus() { batteryStatus = enabled ? Self.battery() : nil }
+
     private func refresh() {
         guard !stopping else { return }
         let enabled = enabled, threshold = threshold, mode = mode, target = target, available = source != nil
+        refreshBatteryStatus()
+        let battery = batteryStatus
         queue.async {
             let error: String?
             var hiding = false
@@ -141,7 +146,7 @@ final class PercentageHiderPill {
                     try self.session.restore()
                     throw PercentageHiderSession.Failure("Battery change notifications are unavailable.")
                 }
-                if enabled, let battery = Self.battery() {
+                if enabled, let battery {
                     let visible = PercentageHiderPolicy.shouldShow(
                         level: battery.level, charging: battery.charging, threshold: threshold, mode: mode)
                     try self.session.update(target: target, visible: visible)
@@ -165,7 +170,7 @@ final class PercentageHiderPill {
             DispatchQueue.main.async { completion(failure) }
         }
     }
-    private static func battery() -> (level: Double, charging: Bool)? {
+    private static func battery() -> (level: Double, charging: Bool, onExternalPower: Bool)? {
         guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
               let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return nil }
         for source in sources {
@@ -175,7 +180,8 @@ final class PercentageHiderPill {
                   let maximum = data[kIOPSMaxCapacityKey] as? Double,
                   let charging = data[kIOPSIsChargingKey] as? Bool,
                   maximum > 0, current >= 0, current <= maximum else { continue }
-            return (100 * current / maximum, charging)
+            let onExternalPower = (data[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
+            return (100 * current / maximum, charging, onExternalPower)
         }
         return nil
     }

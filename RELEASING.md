@@ -42,6 +42,12 @@ The default build uses an ad-hoc signature. A downloaded copy may be blocked unt
 
 The cask's `uninstall quit:` requests the app's standard quit path during removal, upgrade and reinstall. The camera pill completes restoration before replying. The recovery directory is intentionally excluded from `zap`, and startup at login stays opt-in. If the app cannot quit or restore, resolve that error first; a Brew quit request alone is not an independent guarantee that a damaged app has recovered.
 
+## Stable signing for local previews
+
+To keep a stable identity across local preview builds, create a self-signed Code Signing certificate in your login Keychain. Put its SHA-1 certificate fingerprint on one line in `.build/utilipilled-local-signing-identity`, then use `./build.sh --preview`. Keep using the same Keychain identity. The file holds the public fingerprint and is ignored by Git. The private key stays in Keychain.
+
+After switching from ad hoc signing, grant the new identity Accessibility access once if you use SwitcherMogged. Test a second signed preview update to confirm the approval carries forward on your Mac. The local identity is used only in preview mode. Public release signing continues to follow the workflow above.
+
 ## Optional Developer ID signing and notarization
 
 Apple's Developer Program supplies Developer ID certificates and notarization access. Membership is paid; it is not required for the personal-use path above. See [Apple's program details](https://developer.apple.com/programs/) and [notarization documentation](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution).

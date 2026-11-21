@@ -60,7 +60,15 @@ fi
 test -s "$staged_app/Contents/Resources/Assets.car"
 test -s "$staged_app/Contents/Resources/AppIcon.icns"
 signing_identity="${JOSHTOOLS_SIGNING_IDENTITY:--}"
-if [[ "$signing_identity" == "-" ]]; then
+local_identity_file="$PWD/.build/utilipilled-local-signing-identity"
+if [[ -n "$preview_source" && -s "$local_identity_file" && -z "${JOSHTOOLS_SIGNING_IDENTITY:-}" ]]; then
+  local_identity=$(<"$local_identity_file")
+  if [[ ! "$local_identity" =~ '^[[:xdigit:]]{40}$' ]]; then
+    print -u2 "Invalid local preview certificate fingerprint in $local_identity_file."
+    exit 1
+  fi
+  codesign --force --timestamp=none --sign "$local_identity" "$staged_app"
+elif [[ "$signing_identity" == "-" ]]; then
   codesign --force --sign - "$staged_app"
 else
   codesign --force --options runtime --timestamp --sign "$signing_identity" "$staged_app"
