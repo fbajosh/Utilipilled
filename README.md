@@ -1,87 +1,89 @@
 # Utilipilled
 
-Utilipilled is a macOS menu-bar app for small utilities. **NotificationRot** silences alert sounds while a camera is in use and restores them afterward. **CaffeinePilled** keeps the screen and Mac awake until you turn it off or quit.
-
-Notification banners and badges stay visible. Call and media volume are unchanged. NotificationRot controls **system alert volume**, so alerts from other apps are silenced too; sounds played as ordinary media may still be audible.
-
-## About NotificationRot
-
-Finally, you can text people while you're on a meeting without that annoying chime. No longer do your coworkers know that you're talking behind their backs about that ridiculous thing they just said. Your face probably gave it away anyhow, but at least we don't have audio evidence. 
-
-And sure, you could just set up a focus mode. But when you accidentally miss a notification because of an overaggressive focus mode and blind trust in Apple's "notification prioritization", this repo will still be up and will still love you. And you will love it, because it only mutes the sounds of system notifications when your camera is detected as on. It doesn't block the pop-up, so you can still read the notification quietly, and it's all automatic. 
+Utilipilled is a macOS menu-bar app for small utilities. Its pills quiet alerts during calls, keep your Mac awake, manage the battery display, and customize Command-Tab. The menu also shows how far you are into Claude's weekly usage window.
 
 ## Install
 
-Requires macOS 13 or later. Downloads support Apple silicon; Intel builds are unverified.
+Requires macOS 13 or later and an Apple silicon Mac. SwitcherMogged is an opt-in preview for macOS 26.
 
 ```sh
 brew install --cask fbajosh/tools/utilipilled
 open -a Utilipilled
 ```
 
-Or download the ZIP from [Releases](https://github.com/fbajosh/Utilipilled/releases/latest), unzip it, and drag Utilipilled.app into Applications.
+You can also download the ZIP, unzip it, and drag `Utilipilled.app` into Applications. [Download the latest release](https://github.com/fbajosh/Utilipilled/releases/latest).
 
-The current release isn't notarized by Apple. If macOS blocks it, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway**, if offered.
+The release isn't notarized by Apple. If macOS blocks it, try opening the app, then look for **Open Anyway** in **System Settings → Privacy & Security**.
 
-## Use
+## Use the menu
 
-Open Utilipilled once. NotificationRot is enabled by default and runs in the background.
+Open Utilipilled and click its menu-bar icon. The icon stays visible while the app runs, and the app has no Dock icon. Use **Launch at login** to start it automatically, **About Utilipilled…** for the version and icon credits, and **Quit Utilipilled** to close it.
 
-- The menu-bar icon stays visible. Clicking it opens the menu; it does not toggle either pill. There is no Dock icon.
-- The **on** artwork appears while CaffeinePilled or SwitcherMogged is enabled, NotificationRot is suppressing alert sounds, or PowerYeeted is hiding a battery item. The menu shows each pill's status.
-- Allow about two seconds for alert sounds to return after the last camera stops.
+The icon switches to its active artwork when NotificationRot is suppressing alerts, CaffeinePilled or SwitcherMogged is enabled, or PowerYeeted is hiding a battery item.
 
-The menu groups NotificationRot, CaffeinePilled, PowerYeeted, SwitcherMogged, and app settings under section headings. **Scope: all system alerts…** opens macOS Sound settings.
+### NotificationRot
 
-The menu lets you:
+NotificationRot is enabled by default. It mutes **system alert volume** while a camera is active and restores your previous setting about two seconds after the last camera stops. Notification banners and badges stay visible. Call and media volume are unchanged.
 
-- Use **Enable / Disable** under **CaffeinePilled**, then choose **Duration**: 30 min, 12 hours, Until restart, or Indefinitely.
-- Use **Enable / Disable** under **NotificationRot**. Disabling it restores sounds.
-- **Restore sounds for this camera session**, restoring your previous setting and pausing suppression until all cameras become idle.
-- Enable **Launch at login** to start automatically.
-- Open **About Utilipilled…** for version information and icon credits.
-- **Quit Utilipilled**.
+- **Disable** restores sounds and turns off automatic quieting.
+- **Restore sounds for this camera session** restores alert volume and pauses quieting until all cameras are idle. If you raise alert volume yourself during a session, Utilipilled keeps your new setting for that session.
+- **Scope: all system alerts…** opens macOS Sound settings.
 
-If you manually raise Alert volume during a camera session, Utilipilled keeps your new setting for that session. Use the menu's restore command for an explicit override.
+Camera detection depends on the driver, so external and virtual cameras may behave differently. Screen sharing alone doesn't trigger quieting. Apps that play alerts as media can still make sound.
 
-Timed sessions retain their original deadline when you relaunch the app. **Until restart** resumes on relaunch during the same Mac boot; **Indefinitely** also resumes after a Mac restart when Utilipilled launches. Quitting releases sleep prevention; reopening resumes an unexpired session. Disabling CaffeinePilled cancels the session.
+#### About NotificationRot
 
-CaffeinePilled prevents idle display and system sleep without changing your saved sleep settings. Normal sleep behavior returns when you turn it off, quit, or the app crashes. Closing the lid, choosing Sleep manually, and low-battery sleep still take precedence. It does not simulate mouse activity or override screen-lock policies.
+Finally, you can text people while you're on a meeting without that annoying chime. No longer do your coworkers know that you're talking behind their backs about that ridiculous thing they just said. Your face probably gave it away anyhow, but at least we don't have audio evidence.
 
-## PowerYeeted
+And sure, you could just set up a focus mode. But when you accidentally miss a notification because of an overaggressive focus mode and blind trust in Apple's "notification prioritization", this repo will still be up and will still love you. And you will love it, because it only mutes the sounds of system notifications when your camera is detected as on. It doesn't block the pop-up, so you can still read the notification quietly, and it's all automatic.
 
-While enabled, the **Disable** row shows the battery percentage. A bolt indicates active charging, and a plug indicates external power while charging is paused.
+### CaffeinePilled
 
-Choose **Enable** in the PowerYeeted section to control the native battery display. Its Threshold submenu has three independent choices:
+Choose **Enable** to prevent idle display and system sleep. Use **Duration** to choose **30 min**, **12 hours**, **Until restart**, or **Indefinitely**. **Disable** ends the session.
 
-- **100%, 90%, or 80%:** hide at or above the selected level.
-- **When charging or Always:** apply the threshold only during actual charging, or regardless of charging state.
-- **Battery, Percentage, or Both:** choose which native menu-bar items to hide.
+Quitting releases sleep prevention. Relaunching resumes an unexpired timed session with its original deadline. **Until restart** resumes only during the same Mac boot; **Indefinitely** also resumes when Utilipilled opens after a reboot. Closing the lid, choosing Sleep, low-battery sleep, and screen-lock policies still take precedence.
 
-Defaults are Disabled, 90%, Always, and Percentage. The icon stays inactive for this pill unless it is actually hiding something. Battery changes are handled through system notifications. Switching targets restores the setting no longer controlled; disabling or quitting restores your original settings. Settings and recovery state survive relaunches.
+### PowerYeeted
 
-## SwitcherMogged (development preview)
+PowerYeeted frees up space in the macOS menu bar by hiding the battery percentage, battery icon, or both when the battery is at or above a level you choose. It brings them back automatically when the battery drops below that level.
 
-**SwitcherMogged → Hide apps** lets you choose applications to hide or deprioritize in the replacement Command-Tab switcher. Checkmarks identify those apps. The submenu has three labeled sections: **Running**, **Not running**, and **Show hidden apps**. Exclusions can be edited while disabled and survive relaunches. Messages and third-party apps use the same bundle-identifier preferences; their files and activation policies are untouched.
+With the default settings, choosing **Enable** hides the percentage at **90% or higher**, leaves the battery icon visible, and brings the percentage back at **89%**. You can check the live percentage anytime in PowerYeeted’s **Disable** row. A bolt means the battery is charging. A plug means the Mac is on external power and the battery is idle.
 
-**Show hidden apps** offers **Always**, **At end of first cycle**, **After start of second cycle**, **At end of second cycle**, and **Never** (the default). **Always** shows every running app immediately, with your primary apps first and the checked apps grouped at the end. Each group retains its recent-use order, so even a recently used checked app cannot get between your primary apps. A quick switch from a checked app returns to the primary group. **After start of second cycle** wraps selection back normally at the end of the first cycle and reveals hidden apps on the following advancement. The two end-of-cycle choices reveal immediately at their respective boundaries. Hidden apps appear after the visible group, and selection enters the revealed group. For the cycle-based choices, releasing Command or cancelling hides them again and resets the count. Completed cycles count in either direction; reversing partway through a cycle backtracks. The setting survives relaunches. If every running app is hidden, a configured reveal opens the hidden group immediately because there is no visible cycle to traverse.
+Set three independent options in the **Threshold** submenu:
 
-The Hide apps row lists running checked apps in the same recent-use order as the switcher. If the full list is too wide, it shows as many leading names as fit with an “& N more” count. If even the first name and count are too wide, it shows only the total. The summary counts running apps only.
+| Option | Choices |
+| --- | --- |
+| Threshold | **100%**, **90%**, or **80%**. Hide at or above that level. |
+| When to hide | **When charging** applies the threshold during active charging. **Always** applies it regardless of charging state. |
+| What to hide | **Battery**, **Percentage**, or **Both**. |
 
-The pill is **disabled by default**. The preview supports macOS 26 on Apple silicon. Choose **Enable**, grant Accessibility if requested, then choose **Enable** again. Disabling keeps exclusions. An unavailable or failed keyboard interceptor leaves the native shortcut available, with no saved macOS shortcut changes.
+PowerYeeted starts disabled, with **90%**, **Always**, and **Percentage** selected. Changing what it hides restores the old target's setting. Disabling or quitting restores your original battery display settings.
 
-SwitcherMogged is an **opt-in preview**: broader native behavior and performance parity remain unverified. Startup ordering, window overview, Option-release reopening, file/URL drops and spring loading are implemented, with broader native-behavior and failure-recovery testing still pending. The live feasibility test on the target Mac showed only the replacement switcher. See [validation status and release blockers](docs/SWITCHER_HIDER_VALIDATION.md).
+### SwitcherMogged (preview)
 
-## ClaudeMaxxing
+SwitcherMogged replaces Command-Tab so you can hide or deprioritize apps. It's disabled by default and requires macOS 26 on Apple silicon. Choose **Enable**, grant Accessibility if prompted, then choose **Enable** again.
 
-**ClaudeMaxxing** is a read-only weekly usage target, rounded to a whole percent. It resets to 0% every Wednesday at 16:00 UTC (11am at fixed UTC-5), independent of your timezone and daylight savings.
+Check apps under **Hide apps → Running** or **Not running**. Your choices persist across relaunches and while SwitcherMogged is disabled. The **Hide apps** row lists checked running apps in switcher order, most recently used first. If the list is too wide, it shows as many names as fit followed by **& N more**, or just the total if no names fit.
 
-## If sounds don't return
+Use **Hide apps → Show hidden apps** to choose when checked apps appear:
 
-A separate helper attempts to restore alert volume if the app crashes. If alerts remain silent:
+| Setting | What happens |
+| --- | --- |
+| **Always** | Checked apps appear at the end from the start. Both groups keep their recent-use order. |
+| **At end of first cycle** | Reveal checked apps when you finish cycling through the visible apps once. |
+| **After start of second cycle** | Wrap back to the first group, then reveal checked apps on the next advance. |
+| **At end of second cycle** | Reveal checked apps after two complete cycles. |
+| **Never** (default) | Keep checked apps out of the switcher. |
 
-1. Reopen Utilipilled, then choose **Quit Utilipilled**.
-2. Or adjust **System Settings → Sound → Alert volume** manually.
+Cycle counts reset when you release Command or cancel. Either direction counts, and reversing partway through a cycle backtracks. If every running app is checked, any mode that reveals them shows them immediately. If interception can't start or stops working, the native shortcut remains available. Some native behaviors are still being tested. [SwitcherMogged validation status](docs/SWITCHER_HIDER_VALIDATION.md).
+
+### ClaudeMaxxing
+
+ClaudeMaxxing is a weekly clock for pacing Claude usage. It shows the percentage of time elapsed in the usage window, rounded to a whole percent. It resets Wednesday at **16:00 UTC**. The reset is fixed in UTC, so the local time may shift with daylight saving.
+
+## If alert sounds don't return
+
+A separate helper attempts to restore alert volume if the app crashes. If alerts remain silent, reopen Utilipilled and choose **Quit Utilipilled**, or adjust **System Settings → Sound → Alert volume** manually.
 
 You can also quit the app and retry recovery from Terminal:
 
@@ -89,25 +91,27 @@ You can also quit the app and retry recovery from Terminal:
 /Applications/Utilipilled.app/Contents/MacOS/Utilipilled --recover
 ```
 
-If both the app and helper are killed, reopening the app retries recovery. An error keeps the menu-bar icon visible.
+If both the app and helper are killed, reopening the app retries recovery.
 
-## Limitations and privacy
-
-Camera detection depends on the device driver. External or virtual cameras may report activity differently; screen sharing alone does not trigger quieting. Test the cameras, notification tones and audio routes you use, since some sounds bypass system alert volume.
+## Privacy and permissions
 
 The app does not capture camera frames, record audio, read Messages data, or connect to the network. SwitcherMogged requests Accessibility only when you explicitly enable it; unrelated keyboard input is not stored or logged. The other pills do not need Accessibility. The app does not request Camera, Microphone, Screen Recording, Full Disk Access, notification or administrator permissions. It doesn't even collect usage information, and it has no method to communicate anything back.
 
 ## Update or uninstall
 
+To upgrade a Homebrew installation:
+
 ```sh
 brew upgrade --cask fbajosh/tools/utilipilled
 ```
+
+To uninstall, first disable **Launch at login**, then run:
 
 ```sh
 brew uninstall --cask fbajosh/tools/utilipilled
 ```
 
-Disable **Launch at login** before uninstalling. Upgrades and removal request a normal quit so sounds can be restored. Recovery files are preserved; resolve any reported recovery error before removing them.
+Homebrew requests a normal quit for upgrades and removal so Utilipilled can restore the settings it manages. Recovery files are preserved. Resolve any reported recovery error before removing those files.
 
 Existing `joshtools` installations migrate through the same Homebrew tap. Replace any old JoshTools Login Item with Utilipilled's login setting.
 
@@ -121,4 +125,4 @@ With full Xcode 26 or later installed and selected as the active developer tools
 open dist/Utilipilled.app
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for diagnostics and integration tests, and [RELEASING.md](RELEASING.md) for packaging and signing.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for diagnostics and integration tests, and [RELEASING.md](RELEASING.md) for packaging, release signing, and stable signing for local previews.
