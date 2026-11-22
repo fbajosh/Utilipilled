@@ -21,6 +21,20 @@ Open Utilipilled and click its menu-bar icon. The icon stays visible while the a
 
 The icon switches to its active artwork when NotificationRot is suppressing alerts, CaffeinePilled or SwitcherMogged is enabled, or PowerYeeted is hiding a battery item.
 
+**Work mode** sits below **Launch at login** and starts off. Turn it on for plain-language labels. Utilipilled remembers your choice.
+
+These shortcuts work while the Utilipilled menu is open:
+
+| Shortcut | Default label | Work mode label |
+| --- | --- | --- |
+| ⌘N | NotificationRot | Mute notifications on video |
+| ⌘C | CaffeinePilled | Keep screen awake |
+| ⌘B | PowerYeeted | Hide battery info |
+| ⌘S | SwitcherMogged | Organize switcher apps |
+| ⌘W | Work mode | Work mode |
+
+The first four shortcuts toggle their pill. Work mode also renames the readouts to **Claude usage target** and **Clipboard length**.
+
 ### NotificationRot
 
 NotificationRot is enabled by default. It mutes **system alert volume** while a camera is active and restores your previous setting about two seconds after the last camera stops. Notification banners and badges stay visible. Call and media volume are unchanged.

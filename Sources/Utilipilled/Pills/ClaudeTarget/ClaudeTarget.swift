@@ -11,7 +11,7 @@ enum ClaudeTarget {
         return elapsed / week * 100
     }
 
-    static func title(at date: Date = Date()) -> String {
-        "ClaudeMaxxing: \(Int(percentage(at: date).rounded()))%"
+    static func title(at date: Date = Date(), label: String = "ClaudeMaxxing") -> String {
+        "\(label): \(Int(percentage(at: date).rounded()))%"
     }
 }

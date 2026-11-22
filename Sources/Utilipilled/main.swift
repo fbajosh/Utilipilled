@@ -81,9 +81,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var toggleItem: NSMenuItem!
     private var awakeItem: NSMenuItem!
     private var loginItem: NSMenuItem!
+    private var workModeItem: NSMenuItem!
+    private var workMode = UserDefaults.standard.bool(forKey: "workMode")
+    private var pillHeadings: [NSMenuItem] = []
+    private var pillNames: [String] {
+        workMode
+            ? ["Mute notifications on video", "Keep screen awake", "Hide battery info", "Organize switcher apps"]
+            : ["NotificationRot", "CaffeinePilled", "PowerYeeted", "SwitcherMogged"]
+    }
+    private var claudeLabel: String { workMode ? "Claude usage target" : "ClaudeMaxxing" }
+    private var clipboardLabel: String { workMode ? "Clipboard length" : SkibidiClipboard.label }
     private var titleItem: NSMenuItem!
     private var durationItem: NSMenuItem!
     private var percentageItem: NSMenuItem!
+    private var percentageShortcutItem: NSMenuItem!
     private var thresholdItem: NSMenuItem!
     private var percentageErrorItem: NSMenuItem!
     private var switcherItem: NSMenuItem!
@@ -108,7 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         item.autosaveName = "Utilipilled"
         item.isVisible = true
         let menu = NSMenu()
-        func heading(_ title: String, primary: Bool = false) {
+        @discardableResult
+        func heading(_ title: String, primary: Bool = false) -> NSMenuItem {
             let entry = menu.addItem(withTitle: title, action: nil, keyEquivalent: "")
             if primary {
                 let view = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 28))
@@ -117,23 +129,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
                 label.textColor = .labelColor
                 label.frame = NSRect(x: 14, y: 4, width: 222, height: 20)
                 view.addSubview(label); entry.view = view
-                return
+            } else {
+                setHeading(entry, title: title)
             }
-            entry.attributedTitle = NSAttributedString(string: title, attributes: [
-                .font: NSFont.boldSystemFont(ofSize: primary ? 14 : 12),
-                .foregroundColor: primary ? NSColor.labelColor : NSColor.secondaryLabelColor
-            ])
+            return entry
         }
+        // These key equivalents belong to the status item's menu, not the
+        // application's main menu or a global keyboard handler.
         heading("Utilipilled", primary: true)
         menu.addItem(.separator())
-        heading("NotificationRot")
-        toggleItem = menu.addItem(withTitle: "Enable", action: #selector(toggle), keyEquivalent: "")
+        pillHeadings.append(heading(pillNames[0]))
+        toggleItem = menu.addItem(withTitle: "Enable", action: #selector(toggle), keyEquivalent: "n")
         menu.addItem(withTitle: "Restore sounds for this camera session", action: #selector(restore), keyEquivalent: "")
         titleItem = menu.addItem(withTitle: status.title, action: nil, keyEquivalent: "")
         menu.addItem(withTitle: "Scope: all system alerts…", action: #selector(soundSettings), keyEquivalent: "")
         menu.addItem(.separator())
-        heading("CaffeinePilled")
-        awakeItem = menu.addItem(withTitle: "Enable", action: #selector(toggleKeepAwake), keyEquivalent: "")
+        pillHeadings.append(heading(pillNames[1]))
+        awakeItem = menu.addItem(withTitle: "Enable", action: #selector(toggleKeepAwake), keyEquivalent: "c")
         durationItem = menu.addItem(withTitle: "Duration", action: nil, keyEquivalent: "")
         let durations = NSMenu()
         for (index, duration) in KeepAwakePill.Duration.allCases.enumerated() {
@@ -142,8 +154,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         }
         durationItem.submenu = durations
         menu.addItem(.separator())
-        heading("PowerYeeted")
-        percentageItem = menu.addItem(withTitle: "Enable", action: #selector(togglePercentageHider), keyEquivalent: "")
+        pillHeadings.append(heading(pillNames[2]))
+        percentageItem = menu.addItem(withTitle: "Enable", action: #selector(togglePercentageHider),
+                                      keyEquivalent: BatteryMenuRow.keyEquivalent)
+        percentageShortcutItem = menu.addItem(withTitle: "Toggle battery display",
+                                              action: #selector(togglePercentageHider), keyEquivalent: "")
+        percentageShortcutItem.isHidden = true
+        percentageShortcutItem.allowsKeyEquivalentWhenHidden = true
         thresholdItem = menu.addItem(withTitle: "Threshold", action: nil, keyEquivalent: "")
         let thresholds = NSMenu()
         for value in PercentageHiderPolicy.thresholds {
@@ -164,16 +181,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         percentageErrorItem = menu.addItem(withTitle: "", action: nil, keyEquivalent: "")
         percentageErrorItem.isHidden = true
         menu.addItem(.separator())
-        heading("SwitcherMogged")
-        switcherItem = menu.addItem(withTitle: "Enable", action: #selector(toggleSwitcherHider), keyEquivalent: "")
+        pillHeadings.append(heading(pillNames[3]))
+        switcherItem = menu.addItem(withTitle: "Enable", action: #selector(toggleSwitcherHider), keyEquivalent: "s")
         switcherAppsItem = menu.addItem(withTitle: "Hide apps: 0", action: nil, keyEquivalent: "")
         switcherAppsItem.submenu = switcherHider.appsMenu
         menu.addItem(.separator())
-        claudeTargetItem = menu.addItem(withTitle: ClaudeTarget.title(), action: nil, keyEquivalent: "")
-        clipboardItem = menu.addItem(withTitle: SkibidiClipboard.label, action: nil, keyEquivalent: "")
+        claudeTargetItem = menu.addItem(withTitle: ClaudeTarget.title(label: claudeLabel), action: nil, keyEquivalent: "")
+        clipboardItem = menu.addItem(withTitle: clipboardLabel, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
         heading("Utilipilled")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
+        workModeItem = menu.addItem(withTitle: "Work mode", action: #selector(toggleWorkMode), keyEquivalent: "w")
         menu.addItem(withTitle: "About Utilipilled…", action: #selector(about), keyEquivalent: "")
         menu.addItem(withTitle: "Quit Utilipilled", action: #selector(quit), keyEquivalent: "q")
         for entry in menu.items where entry.action != nil { entry.target = self }
@@ -208,13 +226,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         updatePercentageItem()
         switcherHider.checkAvailability()
         updateHiddenAppsTitle()
-        claudeTargetItem.title = ClaudeTarget.title()
+        claudeTargetItem.title = ClaudeTarget.title(label: claudeLabel)
     }
     func menuWillOpen(_ menu: NSMenu) {
         refreshClipboardReadout()
         claudeTargetTimer?.invalidate()
         let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
-            self?.claudeTargetItem.title = ClaudeTarget.title()
+            guard let self else { return }
+            self.claudeTargetItem.title = ClaudeTarget.title(label: self.claudeLabel)
         }
         timer.tolerance = 5
         RunLoop.main.add(timer, forMode: .common)
@@ -222,11 +241,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
     private func refreshClipboardReadout() {
         clipboardRead?.cancel()
-        clipboardItem.title = SkibidiClipboard.label + ": checking…"
+        let label = clipboardLabel
+        clipboardItem.title = label + ": checking…"
         let requestID = UUID()
         clipboardRequestID = requestID
         let read = DispatchWorkItem { [weak self] in
-            let title = SkibidiClipboard.title(for: .general)
+            let title = SkibidiClipboard.title(for: .general, label: label)
             RunLoop.main.perform(inModes: [.common, .eventTracking]) { [weak self] in
                 guard let self, self.clipboardRequestID == requestID else { return }
                 self.clipboardItem.title = title
@@ -245,7 +265,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     }
     private func render() {
         item.button?.image = MenuBarIcon.image(active: keepAwake.isEnabled || status.quiet || percentageHider.isHiding || switcherHider.enabled)
-        let description = "Utilipilled\nNotificationRot: \(menuContinuation(status.title))\nCaffeinePilled: \(keepAwake.isEnabled ? "on" : "off")\nPowerYeeted: \(percentageHider.isHiding ? "hiding" : "not hiding")\nSwitcherMogged: \(switcherHider.enabled ? "on" : "off")"
+        let names = pillNames
+        let description = """
+        Utilipilled
+        \(names[0]): \(menuContinuation(status.title))
+        \(names[1]): \(keepAwake.isEnabled ? "on" : "off")
+        \(names[2]): \(percentageHider.isHiding ? "hiding" : "not hiding")
+        \(names[3]): \(switcherHider.enabled ? "on" : "off")
+        """
         item.button?.toolTip = description
         item.button?.setAccessibilityLabel(description)
         titleItem.title = "Status: " + menuContinuation(status.title)
@@ -271,17 +298,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         switcherItem.title = switcherHider.enabled ? "Disable" : "Enable"
         updateHiddenAppsTitle()
         switcherItem.toolTip = switcherHider.errorMessage ?? "Development preview; native parity validation is pending."
+        workModeItem.state = workMode ? .on : .off
         loginItem.state = SMAppService.mainApp.status == .enabled ? .on : .off
         item.menu?.update()
     }
+    private func setHeading(_ entry: NSMenuItem, title: String) {
+        entry.title = title
+        entry.attributedTitle = NSAttributedString(string: title, attributes: [
+            .font: NSFont.boldSystemFont(ofSize: 12),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ])
+    }
+
+    @objc private func toggleWorkMode() {
+        workMode.toggle()
+        UserDefaults.standard.set(workMode, forKey: "workMode")
+        for (entry, title) in zip(pillHeadings, pillNames) { setHeading(entry, title: title) }
+        clipboardRead?.cancel()
+        clipboardRequestID = nil
+        clipboardItem.title = clipboardLabel
+        render()
+    }
+
     private func updatePercentageItem() {
         let enabled = percentageHider.enabled
         percentageItem.title = enabled ? "Disable" : "Enable"
         guard enabled, let battery = percentageHider.batteryStatus else {
+            percentageShortcutItem.keyEquivalent = ""
+            percentageItem.keyEquivalent = BatteryMenuRow.keyEquivalent
             percentageItem.view = nil
             return
         }
 
+        // Let AppKit dispatch the shortcut through a standard item while
+        // the visible item uses a custom view for the battery readout.
+        percentageItem.keyEquivalent = ""
+        percentageShortcutItem.keyEquivalent = BatteryMenuRow.keyEquivalent
         let row = percentageItem.view as? BatteryMenuRow ?? BatteryMenuRow()
         row.update(percentage: "\(Int(battery.level.rounded()))%",
                    charging: battery.charging, onExternalPower: battery.onExternalPower)

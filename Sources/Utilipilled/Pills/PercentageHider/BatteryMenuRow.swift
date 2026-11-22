@@ -3,7 +3,9 @@ import AppKit
 /// AppKit stretches this view to the menu's width. The trailing stack follows
 /// the actual row bounds, including when other items make the menu wider.
 final class BatteryMenuRow: NSView {
+    static let keyEquivalent = "b"
     private let actionLabel = NSTextField(labelWithString: "Disable")
+    private let shortcutLabel = NSTextField(labelWithString: "⌘ " + BatteryMenuRow.keyEquivalent.uppercased())
     private let percentageLabel = NSTextField(labelWithString: "")
     private let icon = NSImageView()
     private var hovered = false
@@ -14,20 +16,31 @@ final class BatteryMenuRow: NSView {
         autoresizingMask = [.width]
         actionLabel.font = font
         percentageLabel.font = font
-        let readout = NSStackView(views: [percentageLabel, icon])
+        shortcutLabel.font = font
+        let battery = NSStackView(views: [percentageLabel, icon])
+        battery.alignment = .centerY
+        battery.spacing = 4
+        let readout = NSStackView(views: [battery, shortcutLabel])
         readout.alignment = .centerY
-        readout.spacing = 4
+        readout.spacing = 12
         actionLabel.translatesAutoresizingMaskIntoConstraints = false
         readout.translatesAutoresizingMaskIntoConstraints = false
         addSubview(actionLabel)
         addSubview(readout)
         // Account for the leading space AppKit reserves on the native rows.
         let titleInset: CGFloat
-        if #available(macOS 26.0, *) { titleInset = 24 } else { titleInset = 14 }
+        let shortcutInset: CGFloat
+        if #available(macOS 26.0, *) {
+            titleInset = 24
+            shortcutInset = 16
+        } else {
+            titleInset = 14
+            shortcutInset = 14
+        }
         NSLayoutConstraint.activate([
             actionLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: titleInset),
             actionLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
-            readout.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
+            readout.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -shortcutInset),
             readout.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
         setAccessibilityElement(true)
@@ -72,6 +85,7 @@ final class BatteryMenuRow: NSView {
         let color: NSColor = selected ? .selectedMenuItemTextColor : .labelColor
         actionLabel.textColor = color
         percentageLabel.textColor = color
+        shortcutLabel.textColor = selected ? color : .tertiaryLabelColor
         icon.contentTintColor = color
         needsDisplay = true
     }
