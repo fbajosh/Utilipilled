@@ -1,6 +1,6 @@
 # Utilipilled
 
-Utilipilled is a macOS menu-bar app for small utilities. Its pills quiet alerts during calls, keep your Mac awake, manage the battery display, and customize Command-Tab. The menu also shows how far you are into Claude's weekly usage window.
+Utilipilled is a macOS menu-bar app for small utilities. Its pills quiet alerts during calls, keep your Mac awake, manage the battery display, and customize Command-Tab. The menu also shows how far you are into Claude's weekly usage window and how much is on your clipboard.
 
 ## Install
 
@@ -80,6 +80,12 @@ Cycle counts reset when you release Command or cancel. Either direction counts, 
 ### ClaudeMaxxing
 
 ClaudeMaxxing is a weekly clock for pacing Claude usage. It shows the percentage of time elapsed in the usage window, rounded to a whole percent. It resets Wednesday at **16:00 UTC**. The reset is fixed in UTC, so the local time may shift with daylight saving.
+
+### Skibidi Clipboard
+
+Open the Utilipilled menu to see the character count of copied text. For images and other non-text contents, the row shows a size, such as **52.1 MB**. For copied files, it uses the file size when available.
+
+The readout appears below ClaudeMaxxing. Clipboard contents are read only when you open the menu and are never saved. macOS may ask for clipboard access.
 
 ## If alert sounds don't return
 
