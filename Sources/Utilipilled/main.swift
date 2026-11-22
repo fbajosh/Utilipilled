@@ -90,6 +90,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private var switcherAppsItem: NSMenuItem!
     private var claudeTargetItem: NSMenuItem!
     private var claudeTargetTimer: Timer?
+    private var clipboardItem: NSMenuItem!
+    private let clipboardQueue = DispatchQueue(label: "Utilipilled.clipboard", qos: .userInitiated)
+    private var clipboardRead: DispatchWorkItem?
+    private var clipboardRequestID: UUID?
     private var quitting = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -166,6 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         switcherAppsItem.submenu = switcherHider.appsMenu
         menu.addItem(.separator())
         claudeTargetItem = menu.addItem(withTitle: ClaudeTarget.title(), action: nil, keyEquivalent: "")
+        clipboardItem = menu.addItem(withTitle: SkibidiClipboard.label, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
         heading("Utilipilled")
         loginItem = menu.addItem(withTitle: "Launch at login", action: #selector(login), keyEquivalent: "")
@@ -206,6 +211,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         claudeTargetItem.title = ClaudeTarget.title()
     }
     func menuWillOpen(_ menu: NSMenu) {
+        refreshClipboardReadout()
         claudeTargetTimer?.invalidate()
         let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
             self?.claudeTargetItem.title = ClaudeTarget.title()
@@ -214,7 +220,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
         RunLoop.main.add(timer, forMode: .common)
         claudeTargetTimer = timer
     }
+    private func refreshClipboardReadout() {
+        clipboardRead?.cancel()
+        clipboardItem.title = SkibidiClipboard.label + ": checking…"
+        let requestID = UUID()
+        clipboardRequestID = requestID
+        let read = DispatchWorkItem { [weak self] in
+            let title = SkibidiClipboard.title(for: .general)
+            RunLoop.main.perform(inModes: [.common, .eventTracking]) { [weak self] in
+                guard let self, self.clipboardRequestID == requestID else { return }
+                self.clipboardItem.title = title
+            }
+            CFRunLoopWakeUp(CFRunLoopGetMain())
+        }
+        clipboardRead = read
+        clipboardQueue.async(execute: read)
+    }
+
     func menuDidClose(_ menu: NSMenu) {
+        clipboardRead?.cancel()
+        clipboardRead = nil
+        clipboardRequestID = nil
         claudeTargetTimer?.invalidate(); claudeTargetTimer = nil
     }
     private func render() {
