@@ -3,7 +3,7 @@ import AppKit
 enum SkibidiClipboard {
     static let label = "Skibidi Clipboard"
 
-    static func title(for pasteboard: NSPasteboard) -> String {
+    static func title(for pasteboard: NSPasteboard, label: String = SkibidiClipboard.label) -> String {
         let changeCount = pasteboard.changeCount
         guard let items = pasteboard.pasteboardItems else { return "\(label): unavailable" }
         guard !items.isEmpty else { return "\(label): 0 characters" }
