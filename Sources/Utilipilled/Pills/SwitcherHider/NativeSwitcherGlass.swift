@@ -2,7 +2,7 @@ import AppKit
 import ObjectiveC
 
 // Isolate the OS-specific material recipes; never change another app's views.
-// Numeric recipe mappings are checked only on the supported macOS 26 build family.
+// Numeric recipe mappings are checked only on the supported macOS 26 and 27 build families.
 // Setter existence, C ABI argument types and readback are checked before use.
 enum NativeSwitcherGlass {
     enum Role: Int { case container = 3, selection = 14 }

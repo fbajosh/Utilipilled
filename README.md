@@ -4,7 +4,7 @@ Utilipilled is a macOS menu-bar app for small utilities. Its pills quiet alerts 
 
 ## Install
 
-Requires macOS 13 or later and an Apple silicon Mac. SwitcherMogged is an opt-in preview for macOS 26.
+Requires macOS 13 or later and an Apple silicon Mac. SwitcherMogged is an opt-in preview for macOS 26 and 27.
 
 ```sh
 brew install --cask fbajosh/tools/utilipilled
@@ -61,7 +61,7 @@ Quitting releases sleep prevention. Relaunching resumes an unexpired timed sessi
 
 PowerYeeted frees up space in the macOS menu bar by hiding the battery percentage, battery icon, or both when the battery is at or above a level you choose. It brings them back automatically when the battery drops below that level.
 
-With the default settings, choosing **Enable** hides the percentage at **90% or higher**, leaves the battery icon visible, and brings the percentage back at **89%**. You can check the live percentage anytime in PowerYeeted’s **Disable** row. A bolt means the battery is charging. A plug means the Mac is on external power and the battery is idle.
+With the default settings, choosing **Enable** hides the percentage at **90% or higher**, leaves the battery icon visible, and brings the percentage back at **89%**. You can check the live percentage anytime in PowerYeeted’s **Disable** row. The badge also shows **charging** or **plugged in** when applicable. On macOS 13, the readout uses a bolt for charging and a plug for external power while the battery is idle.
 
 Set three independent options in the **Threshold** submenu:
 
@@ -75,7 +75,7 @@ PowerYeeted starts disabled, with **90%**, **Always**, and **Percentage** select
 
 ### SwitcherMogged (preview)
 
-SwitcherMogged replaces Command-Tab so you can hide or deprioritize apps. It's disabled by default and requires macOS 26 on Apple silicon. Choose **Enable**, grant Accessibility if prompted, then choose **Enable** again.
+SwitcherMogged replaces Command-Tab so you can hide or deprioritize apps. It's disabled by default and requires macOS 26 or 27 on Apple silicon. Choose **Enable**, grant Accessibility if prompted, then choose **Enable** again.
 
 Check apps under **Hide apps → Running** or **Not running**. Your choices persist across relaunches and while SwitcherMogged is disabled. The **Hide apps** row lists checked running apps in switcher order, most recently used first. If the list is too wide, it shows as many names as fit followed by **& N more**, or just the total if no names fit.
 
