@@ -323,7 +323,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation, 
     private func updatePercentageItem() {
         let enabled = percentageHider.enabled
         percentageItem.title = enabled ? "Disable" : "Enable"
-        guard enabled, let battery = percentageHider.batteryStatus else {
+        let battery = enabled ? percentageHider.batteryStatus : nil
+        if #available(macOS 14.0, *) {
+            percentageItem.badge = battery.map { battery in
+                let percentage = "\(Int(battery.level.rounded()))%"
+                let status = battery.charging ? " · charging" : (battery.onExternalPower ? " · plugged in" : "")
+                return NSMenuItemBadge(string: percentage + status)
+            }
+            return
+        }
+
+        guard let battery else {
             percentageShortcutItem.keyEquivalent = ""
             percentageItem.keyEquivalent = BatteryMenuRow.keyEquivalent
             percentageItem.view = nil

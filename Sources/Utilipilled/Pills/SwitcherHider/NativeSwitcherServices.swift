@@ -78,7 +78,8 @@ final class NativeSwitcherServices {
 
     static var supportedOS: Bool {
         #if arch(arm64)
-        return ProcessInfo.processInfo.operatingSystemVersion.majorVersion == 26
+        let majorVersion = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        return majorVersion == 26 || majorVersion == 27
         #else
         return false
         #endif

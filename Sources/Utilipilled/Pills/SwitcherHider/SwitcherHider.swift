@@ -74,7 +74,7 @@ final class SwitcherHiderPill: NSObject, NSMenuDelegate {
             errorMessage = nil; suspend(); return
         }
         guard availability.supported() else {
-            failed("SwitcherMogged's development preview currently supports macOS 26 on Apple silicon. macOS's native switcher remains available.")
+            failed("SwitcherMogged's development preview currently supports macOS 26 and 27 on Apple silicon. macOS's native switcher remains available.")
             return
         }
         // Only an explicit Enable action is allowed to prompt. Launch/wake never prompt.
